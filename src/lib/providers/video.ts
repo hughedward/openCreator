@@ -1,6 +1,9 @@
 import type { MediaRef, ModelConfig, ProviderConfig, VideoOptions } from "../types";
 import { attachmentDataUrl } from "../media-store";
 import { apiUrl, upstream } from "./common";
+import { buildJimengVideoRequest, submitJimengTask } from "./jimeng";
+import { buildKlingVideoRequest, submitKlingVideoTask } from "./kling";
+import { encodeTaskRef } from "./tasks";
 
 export function videoPrompt(prompt: string, options: VideoOptions) {
   return `${prompt} --ratio ${options.ratio} --resolution ${options.resolution} --duration ${options.duration}` +
@@ -33,6 +36,28 @@ export async function createVideoTask(
   attachments: MediaRef[], options: VideoOptions, signal?: AbortSignal,
 ) {
   const images = await Promise.all(attachments.map(attachmentDataUrl));
+  if (provider.apiType === "jimeng") {
+    const upstreamId = await submitJimengTask(
+      provider,
+      buildJimengVideoRequest(model.modelId, prompt, images, options),
+      signal,
+    );
+    return encodeTaskRef({
+      protocol: "jimeng", kind: "video", modelId: model.modelId, upstreamId,
+    });
+  }
+  if (provider.apiType === "kling") {
+    const upstreamId = await submitKlingVideoTask(
+      provider,
+      model.modelId,
+      options.referenceMode,
+      buildKlingVideoRequest(prompt, images, options),
+      signal,
+    );
+    return encodeTaskRef({
+      protocol: "kling", kind: "video", modelId: model.modelId, upstreamId,
+    });
+  }
   const content = buildVideoContent(prompt, images, options);
   const data = await upstream(apiUrl(provider.baseUrl, "contents/generations/tasks", provider.apiType), provider, {
     method: "POST", signal, body: JSON.stringify({ model: model.modelId, content }),

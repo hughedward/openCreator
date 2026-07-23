@@ -1,6 +1,9 @@
 import type { ImageOptions, MediaRef, ModelConfig, ProviderConfig } from "../types";
 import { attachmentDataUrl, downloadMedia } from "../media-store";
 import { apiUrl, upstream } from "./common";
+import { buildJimengImageRequest, submitJimengTask } from "./jimeng";
+import { buildKlingImageRequest, submitKlingImageTask } from "./kling";
+import { encodeTaskRef } from "./tasks";
 
 const IMAGE_SIZES: Record<Exclude<ImageOptions["ratio"], "adaptive" | "custom">, [number, number]> = {
   "1:1": [2048, 2048],
@@ -49,4 +52,33 @@ export async function generateImage(
     body: JSON.stringify(buildImageRequest(model.modelId, prompt, image, options)),
   });
   return Promise.all((data.data || []).map((item: { url: string }) => downloadMedia(item.url, "image")));
+}
+
+export async function createImageTask(
+  provider: ProviderConfig, model: ModelConfig, prompt: string, attachments: MediaRef[],
+  options: ImageOptions, signal?: AbortSignal,
+) {
+  const images = await Promise.all(attachments.map(attachmentDataUrl));
+  if (provider.apiType === "jimeng") {
+    const upstreamId = await submitJimengTask(
+      provider,
+      buildJimengImageRequest(model.modelId, prompt, images, options),
+      signal,
+    );
+    return encodeTaskRef({
+      protocol: "jimeng", kind: "image", modelId: model.modelId, upstreamId,
+    });
+  }
+  if (provider.apiType === "kling") {
+    const upstreamId = await submitKlingImageTask(
+      provider,
+      model.modelId,
+      buildKlingImageRequest(model.modelId, prompt, images, options),
+      signal,
+    );
+    return encodeTaskRef({
+      protocol: "kling", kind: "image", modelId: model.modelId, upstreamId,
+    });
+  }
+  throw new Error("该接口类型使用同步图片生成");
 }

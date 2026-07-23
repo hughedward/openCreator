@@ -37,4 +37,53 @@ describe("provider connection test", () => {
       expect.objectContaining({ method: "GET" }),
     );
   });
+
+  it("checks Kling credentials through the task query without generating", async () => {
+    const kling: ProviderConfig = {
+      ...provider,
+      id: "kling",
+      name: "可灵",
+      baseUrl: "https://api-singapore.klingai.com",
+      apiType: "kling",
+      models: [model],
+    };
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ code: 0, data: [] }));
+
+    await expect(testProviderModel(kling, model, fetcher)).resolves.toContain("未发起付费生成");
+    expect(fetcher).toHaveBeenCalledWith(
+      expect.stringContaining("/tasks?task_ids=mote-connection-test"),
+      expect.objectContaining({
+        headers: { Authorization: "Bearer secret" },
+      }),
+    );
+  });
+
+  it("signs a Jimeng task query without generating", async () => {
+    const jimeng: ProviderConfig = {
+      ...provider,
+      id: "jimeng",
+      name: "即梦视觉",
+      baseUrl: "https://visual.volcengineapi.com",
+      apiKey: "",
+      accessKeyId: "AKLT-example",
+      secretAccessKey: "secret",
+      apiType: "jimeng",
+      models: [model],
+    };
+    const fetcher = vi.fn().mockResolvedValue(Response.json({
+      code: 50412,
+      message: "task not found",
+    }));
+
+    await expect(testProviderModel(jimeng, model, fetcher)).resolves.toContain("凭证可用");
+    expect(fetcher).toHaveBeenCalledWith(
+      expect.stringContaining("Action=CVSync2AsyncGetResult"),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: expect.stringContaining("Credential=AKLT-example/"),
+        }),
+      }),
+    );
+  });
 });

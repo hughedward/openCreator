@@ -6,15 +6,17 @@ export const modelConfigSchema = z.object({
   modelId: z.string().min(1),
   type: z.enum(["chat", "image", "video"]),
   maxReferenceImages: z.number().int().min(0).max(8).default(2),
-  maxVideoDuration: z.number().int().min(4).max(60).default(10),
+  maxVideoDuration: z.number().int().min(3).max(60).default(10),
 });
 
 export const providerConfigSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   baseUrl: z.url(),
-  apiKey: z.string().min(1),
-  apiType: z.enum(["ark", "openai"]).optional(),
+  apiKey: z.string().default(""),
+  accessKeyId: z.string().default(""),
+  secretAccessKey: z.string().default(""),
+  apiType: z.enum(["ark", "openai", "jimeng", "kling"]).optional(),
   models: z.array(modelConfigSchema).superRefine((models, ctx) => {
     const ids = new Set<string>();
     models.forEach((model, index) => {
@@ -24,6 +26,17 @@ export const providerConfigSchema = z.object({
       ids.add(model.id);
     });
   }),
+}).superRefine((provider, ctx) => {
+  if (provider.apiType === "jimeng") {
+    if (!provider.accessKeyId) {
+      ctx.addIssue({ code: "custom", message: "即梦视觉需要 Access Key ID", path: ["accessKeyId"] });
+    }
+    if (!provider.secretAccessKey) {
+      ctx.addIssue({ code: "custom", message: "即梦视觉需要 Secret Access Key", path: ["secretAccessKey"] });
+    }
+  } else if (!provider.apiKey) {
+    ctx.addIssue({ code: "custom", message: "该接口类型需要 API Key", path: ["apiKey"] });
+  }
 }).transform((provider) => ({
   ...provider,
   apiType: provider.apiType ||
@@ -73,7 +86,7 @@ export const videoOptionsSchema = z.object({
   referenceMode: z.enum(["text", "first", "first_last", "references"]),
   ratio: z.enum(["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]),
   resolution: z.enum(["480p", "720p", "1080p", "4k"]),
-  duration: z.number().int().min(4).max(60),
+  duration: z.number().int().min(3).max(60),
   count: z.number().int().min(1).max(4),
   audio: z.boolean(),
   watermark: z.boolean(),

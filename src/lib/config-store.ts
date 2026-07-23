@@ -22,7 +22,11 @@ export function publicConfig(config: AppConfig) {
     providers: config.providers.map((provider) => ({
       ...provider,
       apiKey: provider.apiKey ? "••••••••" : "",
+      accessKeyId: provider.accessKeyId ? "••••••••" : "",
+      secretAccessKey: provider.secretAccessKey ? "••••••••" : "",
       hasApiKey: Boolean(provider.apiKey),
+      hasAccessKeyId: Boolean(provider.accessKeyId),
+      hasSecretAccessKey: Boolean(provider.secretAccessKey),
     })),
   };
 }

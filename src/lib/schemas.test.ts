@@ -33,6 +33,53 @@ describe("appConfigSchema", () => {
     expect(result.providers[0].apiType).toBe("openai");
   });
 
+  it("accepts Jimeng Visual providers with AK and SK credentials", () => {
+    const result = appConfigSchema.parse({
+      providers: [{
+        id: "jimeng", name: "即梦视觉", apiType: "jimeng",
+        baseUrl: "https://visual.volcengineapi.com",
+        accessKeyId: "AKLT-example", secretAccessKey: "secret", models: [{
+          id: "image", name: "即梦图片 4.6", modelId: "jimeng_seedream46_cvtob", type: "image",
+        }],
+      }],
+    });
+
+    expect(result.providers[0]).toMatchObject({
+      apiType: "jimeng",
+      apiKey: "",
+      accessKeyId: "AKLT-example",
+      secretAccessKey: "secret",
+    });
+  });
+
+  it("requires both Jimeng AK and SK credentials", () => {
+    const result = appConfigSchema.safeParse({
+      providers: [{
+        id: "jimeng", name: "即梦视觉", apiType: "jimeng",
+        baseUrl: "https://visual.volcengineapi.com",
+        accessKeyId: "AKLT-example", models: [{
+          id: "video", name: "即梦视频", modelId: "jimeng_ti2v_v30_pro", type: "video",
+        }],
+      }],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts Kling API 2.0 providers with a bearer API key", () => {
+    const result = appConfigSchema.parse({
+      providers: [{
+        id: "kling", name: "可灵", apiType: "kling",
+        baseUrl: "https://api-singapore.klingai.com", apiKey: "secret",
+        models: [{
+          id: "video", name: "Kling 3 Turbo", modelId: "kling-3.0-turbo", type: "video",
+        }],
+      }],
+    });
+
+    expect(result.providers[0].apiType).toBe("kling");
+  });
+
   it("rejects duplicate model identifiers in one provider", () => {
     const result = appConfigSchema.safeParse({
       providers: [{

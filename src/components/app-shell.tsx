@@ -462,7 +462,7 @@ export function AppShell() {
             <div className="message-list">
               {active.messages.map((message) => (
                 <MessageView key={message.id} message={message}
-                  processingType={message.taskId || message.taskIds?.length ? "video" : selected?.model.type} />
+                  processingType={selected?.model.type} />
               ))}
               <div ref={bottomRef} />
             </div>

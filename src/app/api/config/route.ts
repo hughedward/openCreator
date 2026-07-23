@@ -11,8 +11,15 @@ export async function PUT(request: Request) {
     const incoming = await request.json();
     const current = await getConfig();
     for (const provider of incoming.providers || []) {
+      const saved = current.providers.find((item) => item.id === provider.id);
       if (provider.apiKey === "••••••••") {
-        provider.apiKey = current.providers.find((item) => item.id === provider.id)?.apiKey || "";
+        provider.apiKey = saved?.apiKey || "";
+      }
+      if (provider.accessKeyId === "••••••••") {
+        provider.accessKeyId = saved?.accessKeyId || "";
+      }
+      if (provider.secretAccessKey === "••••••••") {
+        provider.secretAccessKey = saved?.secretAccessKey || "";
       }
     }
     return ok(publicConfig(await saveConfig(incoming)));

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { referenceConstraint, validateReferenceCount } from "./reference-images";
+import {
+  referenceConstraint,
+  validateMaximumReferenceCount,
+  validateReferenceCount,
+} from "./reference-images";
 
 describe("reference image constraints", () => {
   it("allows text-to-video without images", () => {
@@ -15,5 +19,10 @@ describe("reference image constraints", () => {
   it("uses the configured model limit for multi-reference mode", () => {
     expect(referenceConstraint("references", 8)).toEqual({ min: 1, max: 8 });
     expect(() => validateReferenceCount("references", 9, 8)).toThrow("最多支持 8 张参考图");
+  });
+
+  it("allows image generation with no reference while enforcing its maximum", () => {
+    expect(() => validateMaximumReferenceCount(0, 8)).not.toThrow();
+    expect(() => validateMaximumReferenceCount(9, 8)).toThrow("最多支持 8 张参考图");
   });
 });

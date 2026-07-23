@@ -9,7 +9,11 @@ export async function POST(request: Request) {
     if (typeof providerId !== "string") throw new Error("供应商 ID 不正确");
     const provider = (await getConfig()).providers.find((item) => item.id === providerId);
     if (!provider) throw new Error("找不到供应商");
-    return ok({ apiKey: provider.apiKey }, {
+    return ok({
+      apiKey: provider.apiKey,
+      accessKeyId: provider.accessKeyId,
+      secretAccessKey: provider.secretAccessKey,
+    }, {
       headers: {
         "Cache-Control": "no-store, max-age=0",
         "Pragma": "no-cache",

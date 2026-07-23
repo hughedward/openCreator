@@ -23,3 +23,8 @@ export function validateReferenceCount(
   if (count < constraint.min) throw new Error("多图参考模式至少需要一张参考图");
   throw new Error(`当前模型最多支持 ${constraint.max} 张参考图`);
 }
+
+export function validateMaximumReferenceCount(count: number, modelLimit: number) {
+  if (count <= modelLimit) return;
+  throw new Error(`当前模型最多支持 ${modelLimit} 张参考图`);
+}

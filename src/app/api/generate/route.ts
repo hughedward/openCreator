@@ -3,11 +3,11 @@ import { getConversation, saveConversation } from "@/lib/conversation-store";
 import { failure, ok } from "@/lib/http";
 import { chat } from "@/lib/providers/chat";
 import { resolveModel } from "@/lib/providers/common";
-import { generateImage } from "@/lib/providers/image";
+import { createImageTask, generateImage } from "@/lib/providers/image";
 import { createVideoTask } from "@/lib/providers/video";
 import { generateRequestSchema } from "@/lib/schemas";
 import type { ImageOptions, Message, VideoOptions } from "@/lib/types";
-import { validateReferenceCount } from "@/lib/reference-images";
+import { validateMaximumReferenceCount, validateReferenceCount } from "@/lib/reference-images";
 import { validateVideoDuration } from "@/lib/video-duration";
 
 const defaultVideo: VideoOptions = {
@@ -35,11 +35,22 @@ export async function POST(request: Request) {
       assistant.content = await chat(provider, model, conversation.messages, request.signal);
       assistant.status = "complete";
     } else if (model.type === "image") {
-      assistant.media = await generateImage(
-        provider, model, input.prompt, input.attachments, input.imageOptions || defaultImage,
-        request.signal,
-      );
-      assistant.status = "complete";
+      const options = input.imageOptions || defaultImage;
+      validateMaximumReferenceCount(input.attachments.length, model.maxReferenceImages);
+      if (provider.apiType === "jimeng" || provider.apiType === "kling") {
+        const taskId = await createImageTask(
+          provider, model, input.prompt, input.attachments, options, request.signal,
+        );
+        assistant.taskId = taskId;
+        assistant.taskIds = [taskId];
+        assistant.completedTaskIds = [];
+        assistant.failedTaskIds = [];
+      } else {
+        assistant.media = await generateImage(
+          provider, model, input.prompt, input.attachments, options, request.signal,
+        );
+        assistant.status = "complete";
+      }
     } else {
       const options = input.videoOptions || defaultVideo;
       validateReferenceCount(options.referenceMode, input.attachments.length, model.maxReferenceImages);

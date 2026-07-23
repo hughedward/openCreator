@@ -1,5 +1,5 @@
 export type ModelType = "chat" | "image" | "video";
-export type ProviderApiType = "ark" | "openai";
+export type ProviderApiType = "ark" | "openai" | "jimeng" | "kling";
 
 export interface ModelConfig {
   id: string;
@@ -15,6 +15,8 @@ export interface ProviderConfig {
   name: string;
   baseUrl: string;
   apiKey: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
   apiType: ProviderApiType;
   models: ModelConfig[];
 }

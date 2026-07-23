@@ -185,13 +185,13 @@ export function VideoControls({
           </div>
           {customDuration && <label className="custom-duration">
             <span>自定义秒数</span>
-            <input type="number" min={4} max={maxVideoDuration} step={1}
+            <input type="number" min={3} max={maxVideoDuration} step={1}
               value={value.duration}
               onChange={(event) => {
-                const duration = Math.min(maxVideoDuration, Math.max(4, Number(event.target.value) || 4));
+                const duration = Math.min(maxVideoDuration, Math.max(3, Number(event.target.value) || 3));
                 onChange({ ...value, duration });
               }} />
-            <small>4–{maxVideoDuration} 秒</small>
+            <small>3–{maxVideoDuration} 秒</small>
           </label>}
         </section>
         <section><h3>选择生成数量</h3>

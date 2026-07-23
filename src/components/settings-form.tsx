@@ -19,6 +19,15 @@ const emptyProvider = (): ProviderConfig => ({
   apiKey: "", apiType: "ark", models: [emptyModel()],
 });
 
+const PROVIDER_DEFAULT_URLS: Record<ProviderConfig["apiType"], string> = {
+  ark: "https://ark.cn-beijing.volces.com/api/v3",
+  openai: "https://api.openai.com/v1",
+  jimeng: "https://visual.volcengineapi.com",
+  kling: "https://api-singapore.klingai.com",
+};
+
+type SecretField = "apiKey" | "accessKeyId" | "secretAccessKey";
+
 export function SettingsForm() {
   const [config, setConfig] = useState<AppConfig>({ providers: [] });
   const [visible, setVisible] = useState<Record<string, boolean>>({});
@@ -53,18 +62,19 @@ export function SettingsForm() {
     setConfig(data); setVisible({}); setRevealed({}); setStatus("已保存");
     window.setTimeout(() => setStatus(""), 2000);
   };
-  const toggleSecret = async (providerIndex: number) => {
+  const toggleSecret = async (providerIndex: number, field: SecretField) => {
     const provider = config.providers[providerIndex];
-    if (visible[provider.id]) {
-      setVisible((current) => ({ ...current, [provider.id]: false }));
-      if (revealed[provider.id]) {
-        updateProvider(providerIndex, { apiKey: "••••••••" });
-        setRevealed((current) => ({ ...current, [provider.id]: false }));
+    const key = `${provider.id}:${field}`;
+    if (visible[key]) {
+      setVisible((current) => ({ ...current, [key]: false }));
+      if (revealed[key]) {
+        updateProvider(providerIndex, { [field]: "••••••••" });
+        setRevealed((current) => ({ ...current, [key]: false }));
       }
       return;
     }
-    if (provider.apiKey !== "••••••••") {
-      setVisible((current) => ({ ...current, [provider.id]: true }));
+    if (provider[field] !== "••••••••") {
+      setVisible((current) => ({ ...current, [key]: true }));
       return;
     }
     try {
@@ -76,9 +86,9 @@ export function SettingsForm() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "无法读取密钥");
-      updateProvider(providerIndex, { apiKey: data.apiKey });
-      setRevealed((current) => ({ ...current, [provider.id]: true }));
-      setVisible((current) => ({ ...current, [provider.id]: true }));
+      updateProvider(providerIndex, { [field]: data[field] || "" });
+      setRevealed((current) => ({ ...current, [key]: true }));
+      setVisible((current) => ({ ...current, [key]: true }));
     } catch (cause) {
       setError((cause as Error).message);
     }
@@ -135,30 +145,61 @@ export function SettingsForm() {
                   <label><span>供应商名称</span><input value={provider.name}
                     placeholder="火山方舟" onChange={(e) => updateProvider(providerIndex, { name: e.target.value })} /></label>
                   <label><span>接口类型</span><select value={provider.apiType}
-                    onChange={(e) => updateProvider(providerIndex, {
-                      apiType: e.target.value as ProviderConfig["apiType"],
-                    })}>
+                    onChange={(e) => {
+                      const apiType = e.target.value as ProviderConfig["apiType"];
+                      updateProvider(providerIndex, {
+                        apiType,
+                        baseUrl: PROVIDER_DEFAULT_URLS[apiType],
+                      });
+                    }}>
                     <option value="ark">火山方舟</option>
                     <option value="openai">OpenAI 兼容</option>
+                    <option value="jimeng">即梦视觉（AK/SK）</option>
+                    <option value="kling">可灵 API 2.0</option>
                   </select></label>
-                  <label className="wide"><span>Base URL</span><input value={provider.baseUrl}
-                    placeholder={provider.apiType === "openai"
-                      ? "https://api.deepseek.com"
-                      : "https://ark.cn-beijing.volces.com/api/v3"}
+                  <label className="wide"><span>Base URL</span><input aria-label="Base URL"
+                    value={provider.baseUrl}
+                    placeholder={PROVIDER_DEFAULT_URLS[provider.apiType]}
                     onChange={(e) => updateProvider(providerIndex, { baseUrl: e.target.value })} /></label>
-                  <label className="wide"><span>API Key</span><div className="secret-input">
-                    <input type={visible[provider.id] ? "text" : "password"} value={provider.apiKey}
-                      placeholder="输入 API Key"
-                      onChange={(e) => {
-                        updateProvider(providerIndex, { apiKey: e.target.value });
-                        setRevealed((current) => ({ ...current, [provider.id]: false }));
-                      }} />
-                    <button type="button" onClick={() => void toggleSecret(providerIndex)}
-                      aria-label={visible[provider.id] ? "隐藏 API Key" : "显示 API Key"}
-                      title={visible[provider.id] ? "隐藏 API Key" : "从本机配置中显示 API Key"}>
-                      {visible[provider.id] ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div></label>
+                  {provider.apiType === "jimeng" ? (
+                    <>
+                      {(["accessKeyId", "secretAccessKey"] as const).map((field) => {
+                        const label = field === "accessKeyId" ? "Access Key ID" : "Secret Access Key";
+                        const key = `${provider.id}:${field}`;
+                        return <label className="wide" key={field}><span>{label}</span>
+                          <div className="secret-input">
+                            <input aria-label={label} type={visible[key] ? "text" : "password"}
+                              value={provider[field] || ""} placeholder={`输入 ${label}`}
+                              onChange={(e) => {
+                                updateProvider(providerIndex, { [field]: e.target.value });
+                                setRevealed((current) => ({ ...current, [key]: false }));
+                              }} />
+                            <button type="button" onClick={() => void toggleSecret(providerIndex, field)}
+                              aria-label={visible[key] ? `隐藏 ${label}` : `显示 ${label}`}>
+                              {visible[key] ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
+                        </label>;
+                      })}
+                    </>
+                  ) : (
+                    <label className="wide"><span>API Key</span><div className="secret-input">
+                      <input aria-label="API Key"
+                        type={visible[`${provider.id}:apiKey`] ? "text" : "password"}
+                        value={provider.apiKey} placeholder="输入 API Key"
+                        onChange={(e) => {
+                          updateProvider(providerIndex, { apiKey: e.target.value });
+                          setRevealed((current) => ({
+                            ...current, [`${provider.id}:apiKey`]: false,
+                          }));
+                        }} />
+                      <button type="button" onClick={() => void toggleSecret(providerIndex, "apiKey")}
+                        aria-label={visible[`${provider.id}:apiKey`] ? "隐藏 API Key" : "显示 API Key"}
+                        title="从本机配置中显示 API Key">
+                        {visible[`${provider.id}:apiKey`] ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div></label>
+                  )}
                 </div>
 
                 <div className="models-head"><h3>模型</h3><span>{provider.models.length} 个</span></div>
@@ -184,11 +225,11 @@ export function SettingsForm() {
                         onChange={(e) => updateModel(providerIndex, modelIndex, {
                           maxReferenceImages: Math.min(8, Math.max(0, Number(e.target.value) || 0)),
                         })} />
-                      {model.type === "video" ? <input className="duration-limit" type="number" min={4} max={60}
+                      {model.type === "video" ? <input className="duration-limit" type="number" min={3} max={60}
                         value={model.maxVideoDuration}
                         aria-label={`${model.name || "模型"}最大视频时长`}
                         onChange={(e) => updateModel(providerIndex, modelIndex, {
-                          maxVideoDuration: Math.min(60, Math.max(4, Number(e.target.value) || 4)),
+                          maxVideoDuration: Math.min(60, Math.max(3, Number(e.target.value) || 3)),
                         })} /> : <span className="not-applicable">—</span>}
                       <button className={`test-model ${tests[model.id]?.state || ""}`}
                         disabled={tests[model.id]?.state === "loading"}
