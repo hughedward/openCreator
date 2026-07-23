@@ -11,6 +11,7 @@ import { createClientId } from "@/lib/client-id";
 import { GenerationStatus } from "@/components/generation-status";
 import { ImageControls, VideoControls } from "@/components/generation-controls";
 import { HistoryMenu } from "@/components/history-menu";
+import { ConversationNavigator } from "@/components/conversation-navigator";
 import { textareaSize } from "@/lib/textarea-size";
 import { pickImageFiles } from "@/lib/image-files";
 import { referenceConstraint, validateReferenceCount } from "@/lib/reference-images";
@@ -53,6 +54,7 @@ export function AppShell() {
   const [draggingImages, setDraggingImages] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const conversationRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const dragDepthRef = useRef(0);
 
@@ -346,7 +348,7 @@ export function AppShell() {
           </span>
         </header>
 
-        <div className="conversation">
+        <div className="conversation" ref={conversationRef}>
           {!active?.messages.length ? (
             <div className="empty-state">
               <div className="empty-mark">M</div>
@@ -364,6 +366,7 @@ export function AppShell() {
             </div>
           )}
         </div>
+        <ConversationNavigator messages={active?.messages || []} scrollRootRef={conversationRef} />
 
         <div className={`composer-region ${draggingImages ? "drag-active" : ""}`}
           onDragEnter={(event) => {
@@ -462,7 +465,7 @@ function MessageView({
   processingType?: ModelConfig["type"];
 }) {
   return (
-    <article className={`message ${message.role}`}>
+    <article id={`message-${message.id}`} className={`message ${message.role}`}>
       <div className="message-meta">{message.role === "user" ? "你" : "Mote"}</div>
       <div className="message-body">
         {message.attachments?.length ? <div className="media-grid">
