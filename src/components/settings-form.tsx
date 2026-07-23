@@ -11,7 +11,8 @@ import { createClientId } from "@/lib/client-id";
 
 const id = () => createClientId();
 const emptyModel = (): ModelConfig => ({
-  id: id(), name: "", modelId: "", type: "chat", maxReferenceImages: 2,
+  id: id(), name: "", modelId: "", type: "chat",
+  maxReferenceImages: 2, maxVideoDuration: 10,
 });
 const emptyProvider = (): ProviderConfig => ({
   id: id(), name: "", baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
@@ -119,7 +120,7 @@ export function SettingsForm() {
                 <div className="model-table">
                   <div className="model-row header">
                     <span>显示名称</span><span>Model ID</span><span>类型</span>
-                    <span>参考图上限</span><span>连接</span><span />
+                    <span>参考图</span><span>视频秒数</span><span>连接</span><span />
                   </div>
                   {provider.models.map((model, modelIndex) => (
                     <div className="model-entry" key={model.id}>
@@ -138,6 +139,12 @@ export function SettingsForm() {
                         onChange={(e) => updateModel(providerIndex, modelIndex, {
                           maxReferenceImages: Math.min(8, Math.max(0, Number(e.target.value) || 0)),
                         })} />
+                      {model.type === "video" ? <input className="duration-limit" type="number" min={4} max={60}
+                        value={model.maxVideoDuration}
+                        aria-label={`${model.name || "模型"}最大视频时长`}
+                        onChange={(e) => updateModel(providerIndex, modelIndex, {
+                          maxVideoDuration: Math.min(60, Math.max(4, Number(e.target.value) || 4)),
+                        })} /> : <span className="not-applicable">—</span>}
                       <button className={`test-model ${tests[model.id]?.state || ""}`}
                         disabled={tests[model.id]?.state === "loading"}
                         onClick={() => testModel(provider, model)}

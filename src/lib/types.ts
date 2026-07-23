@@ -6,6 +6,7 @@ export interface ModelConfig {
   modelId: string;
   type: ModelType;
   maxReferenceImages: number;
+  maxVideoDuration: number;
 }
 
 export interface ProviderConfig {

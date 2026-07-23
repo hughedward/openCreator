@@ -17,6 +17,7 @@ describe("appConfigSchema", () => {
     });
 
     expect(result.providers[0].models[0].maxReferenceImages).toBe(2);
+    expect(result.providers[0].models[0].maxVideoDuration).toBe(10);
   });
 
   it("rejects duplicate model identifiers in one provider", () => {
@@ -118,5 +119,17 @@ describe("generateRequestSchema", () => {
       }],
     });
     expect(result.success).toBe(false);
+  });
+
+  it("accepts a future video duration within the configured schema ceiling", () => {
+    const result = generateRequestSchema.safeParse({
+      conversationId: "conversation-1", providerId: "ark", modelId: "video",
+      prompt: "测试", attachments: [],
+      videoOptions: {
+        referenceMode: "text", ratio: "16:9", resolution: "720p",
+        duration: 30, count: 1, audio: true, watermark: false, cameraFixed: false,
+      },
+    });
+    expect(result.success).toBe(true);
   });
 });

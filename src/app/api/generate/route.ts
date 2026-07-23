@@ -8,6 +8,7 @@ import { createVideoTask } from "@/lib/providers/video";
 import { generateRequestSchema } from "@/lib/schemas";
 import type { ImageOptions, Message, VideoOptions } from "@/lib/types";
 import { validateReferenceCount } from "@/lib/reference-images";
+import { validateVideoDuration } from "@/lib/video-duration";
 
 const defaultVideo: VideoOptions = {
   referenceMode: "text", ratio: "adaptive", resolution: "720p", duration: 5,
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
     } else {
       const options = input.videoOptions || defaultVideo;
       validateReferenceCount(options.referenceMode, input.attachments.length, model.maxReferenceImages);
+      validateVideoDuration(options.duration, model.maxVideoDuration);
       assistant.taskIds = [];
       for (let index = 0; index < options.count; index++) {
         assistant.taskIds.push(await createVideoTask(

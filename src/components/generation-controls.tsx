@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, SlidersHorizontal } from "lucide-react";
 import type { ImageOptions, VideoOptions } from "@/lib/types";
+import { videoDurationPresets } from "@/lib/video-duration";
 
 const imageRatios: Array<[ImageOptions["ratio"], string]> = [
   ["adaptive", "智能"], ["1:1", "1:1"], ["3:4", "3:4"], ["4:3", "4:3"],
@@ -107,14 +108,18 @@ export function ImageControls({
 }
 
 export function VideoControls({
-  value, maxReferenceImages, onChange,
+  value, maxReferenceImages, maxVideoDuration, onChange,
 }: {
   value: VideoOptions;
   maxReferenceImages: number;
+  maxVideoDuration: number;
   onChange: (value: VideoOptions) => void;
 }) {
   const [modeOpen, setModeOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const durationPresets = videoDurationPresets(maxVideoDuration);
+  const [customDuration, setCustomDuration] = useState(
+    () => !durationPresets.includes(value.duration));
   const close = () => { setModeOpen(false); setOptionsOpen(false); };
   const ref = useDismiss(modeOpen || optionsOpen, close);
   const ratioLabel = value.ratio === "adaptive" ? "智能比例" : value.ratio;
@@ -168,9 +173,26 @@ export function VideoControls({
             onChange={(resolution) => onChange({ ...value, resolution })} />
         </section>
         <section><h3>视频时长</h3>
-          <Segmented values={[4, 5, 6, 7, 8, 9, 10] as const} value={value.duration}
+          <div className="duration-picker">
+          <Segmented values={durationPresets} value={value.duration}
             format={(duration) => `${duration}s`}
-            onChange={(duration) => onChange({ ...value, duration })} />
+            onChange={(duration) => {
+              setCustomDuration(false);
+              onChange({ ...value, duration });
+            }} />
+          <button type="button" className={customDuration ? "selected" : ""}
+            onClick={() => setCustomDuration(true)}>自定义</button>
+          </div>
+          {customDuration && <label className="custom-duration">
+            <span>自定义秒数</span>
+            <input type="number" min={4} max={maxVideoDuration} step={1}
+              value={value.duration}
+              onChange={(event) => {
+                const duration = Math.min(maxVideoDuration, Math.max(4, Number(event.target.value) || 4));
+                onChange({ ...value, duration });
+              }} />
+            <small>4–{maxVideoDuration} 秒</small>
+          </label>}
         </section>
         <section><h3>选择生成数量</h3>
           <Segmented values={[1, 2, 3, 4] as const} value={value.count}

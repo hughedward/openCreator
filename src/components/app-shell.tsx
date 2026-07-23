@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowUp, BookOpen, ChevronDown, ImagePlus, Images, Menu, MoreHorizontal,
-  PanelLeftClose, Plus, Settings, Trash2, X,
+  ArrowUp, BookOpen, ChevronDown, ImagePlus, Images, Menu,
+  PanelLeftClose, Plus, Settings, X,
 } from "lucide-react";
 import type { AppConfig, Conversation, ImageOptions, MediaRef, Message, ModelConfig, VideoOptions } from "@/lib/types";
 import { createClientId } from "@/lib/client-id";
 import { GenerationStatus } from "@/components/generation-status";
 import { ImageControls, VideoControls } from "@/components/generation-controls";
+import { HistoryMenu } from "@/components/history-menu";
 import { textareaSize } from "@/lib/textarea-size";
 import { pickImageFiles } from "@/lib/image-files";
 import { referenceConstraint, validateReferenceCount } from "@/lib/reference-images";
@@ -132,6 +133,10 @@ export function AppShell() {
     const rest = conversations.filter((item) => item.id !== id);
     setConversations(rest);
     if (activeId === id) setActiveId(rest[0]?.id);
+  };
+
+  const rename = async (conversation: Conversation, title: string) => {
+    await persist({ ...conversation, title, updatedAt: new Date().toISOString() });
   };
 
   const chooseModel = async (value: string) => {
@@ -298,21 +303,21 @@ export function AppShell() {
         <div className="history-label">最近</div>
         <nav className="history">
           {conversations.map((conversation) => (
-            <button key={conversation.id} className={conversation.id === activeId ? "active" : ""}
-              onClick={() => { setActiveId(conversation.id); setSidebarOpen(false); }}>
-              <span>{conversation.title}</span>
-              <span className="history-actions" onClick={(event) => event.stopPropagation()}>
-                <MoreHorizontal size={15} />
-                <span role="button" tabIndex={0} onClick={() => remove(conversation.id)} aria-label="删除对话">
-                  <Trash2 size={14} />
-                </span>
-              </span>
-            </button>
+            <div key={conversation.id}
+              className={`history-row ${conversation.id === activeId ? "active" : ""}`}>
+              <button className="history-title"
+                onClick={() => { setActiveId(conversation.id); setSidebarOpen(false); }}>
+                {conversation.title}
+              </button>
+              <HistoryMenu title={conversation.title}
+                onRename={(title) => void rename(conversation, title)}
+                onDelete={() => void remove(conversation.id)} />
+            </div>
           ))}
         </nav>
         <div className="sidebar-utilities">
-          <Link className="settings-link" href="/settings"><Settings size={16} /> 设置</Link>
           <Link className="settings-link" href="/docs"><BookOpen size={16} /> 文档</Link>
+          <Link className="settings-link" href="/settings"><Settings size={16} /> 设置</Link>
         </div>
       </aside>
 
@@ -429,6 +434,7 @@ export function AppShell() {
               {selected?.model.type === "video" && <VideoControls
                 value={active?.videoOptions || videoDefaults}
                 maxReferenceImages={selected.model.maxReferenceImages}
+                maxVideoDuration={selected.model.maxVideoDuration}
                 onChange={(videoOptions) => changeGenerationOptions({ videoOptions })} />}
               <span className="composer-spacer">{selected?.model.type === "video" && attachments.length > 0
                 ? (active?.videoOptions || videoDefaults).referenceMode === "references"
