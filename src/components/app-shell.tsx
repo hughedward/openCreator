@@ -122,13 +122,17 @@ export function AppShell() {
     return saved;
   };
 
+  const closeSidebarOnMobile = () => {
+    if (window.matchMedia("(max-width: 700px)").matches) setSidebarOpen(false);
+  };
+
   const create = async () => {
     const conversation = freshConversation(choices[0]);
     await persist(conversation);
     setActiveId(conversation.id);
     setDraft("");
     setAttachments([]);
-    setSidebarOpen(false);
+    closeSidebarOnMobile();
   };
 
   const remove = async (id: string) => {
@@ -309,7 +313,7 @@ export function AppShell() {
             <div key={conversation.id}
               className={`history-row ${conversation.id === activeId ? "active" : ""}`}>
               <button className="history-title"
-                onClick={() => { setActiveId(conversation.id); setSidebarOpen(false); }}>
+                onClick={() => { setActiveId(conversation.id); closeSidebarOnMobile(); }}>
                 {conversation.title}
               </button>
               <HistoryMenu title={conversation.title}
