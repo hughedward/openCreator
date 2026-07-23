@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import Link from "next/link";
 import {
   ArrowUp, BookOpen, ChevronDown, ImagePlus, Images, Menu,
-  PanelLeftClose, Plus, Settings, Square, X,
+  PanelLeftClose, Plus, Search as SearchIcon, Settings, Square, X,
 } from "lucide-react";
 import type { AppConfig, Conversation, ImageOptions, MediaRef, Message, ModelConfig, VideoOptions } from "@/lib/types";
 import { createClientId } from "@/lib/client-id";
@@ -17,6 +17,7 @@ import { textareaSize } from "@/lib/textarea-size";
 import { pickImageFiles } from "@/lib/image-files";
 import { referenceConstraint, validateReferenceCount } from "@/lib/reference-images";
 import { unfinishedTaskIds } from "@/lib/generation-stop";
+import { ConversationSearch } from "@/components/conversation-search";
 
 type PublicConfig = AppConfig & { providers: Array<AppConfig["providers"][number] & { hasApiKey?: boolean }> };
 type ModelChoice = { providerId: string; providerName: string; model: ModelConfig };
@@ -54,6 +55,7 @@ export function AppShell() {
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [draggingImages, setDraggingImages] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const conversationRef = useRef<HTMLDivElement>(null);
@@ -100,6 +102,16 @@ export function AppShell() {
     if (!window.matchMedia("(max-width: 700px)").matches) return;
     const timer = window.setTimeout(() => setSidebarOpen(false), 0);
     return () => clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    const openSearch = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === "k") {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", openSearch);
+    return () => window.removeEventListener("keydown", openSearch);
   }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [active?.messages.length]);
   useLayoutEffect(() => {
@@ -378,9 +390,15 @@ export function AppShell() {
       <aside className={`sidebar ${sidebarOpen ? "is-open" : ""}`}>
         <div className="sidebar-head">
           <button className="wordmark" onClick={create} aria-label="新建对话"><span>M</span> Mote</button>
-          <button className="icon-button desktop-only" onClick={() => setSidebarOpen(false)} aria-label="收起侧栏">
-            <PanelLeftClose size={17} />
-          </button>
+          <div className="sidebar-head-actions">
+            <button className="icon-button" onClick={() => setSearchOpen(true)}
+              aria-label="搜索对话" title="搜索对话 · ⌘ K">
+              <SearchIcon size={17} />
+            </button>
+            <button className="icon-button desktop-only" onClick={() => setSidebarOpen(false)} aria-label="收起侧栏">
+              <PanelLeftClose size={17} />
+            </button>
+          </div>
         </div>
         <button className="new-chat" onClick={create}><Plus size={16} /> 新对话</button>
         <Link className="asset-link" href="/assets"><Images size={16} /> 资产</Link>
@@ -541,6 +559,13 @@ export function AppShell() {
           <p className="composer-note">结果保存在本机 · Enter 发送，Shift + Enter 换行</p>
         </div>
       </section>
+      {searchOpen && <ConversationSearch conversations={conversations}
+        onClose={() => setSearchOpen(false)}
+        onSelect={(conversationId) => {
+          setActiveId(conversationId);
+          setSearchOpen(false);
+          closeSidebarOnMobile();
+        }} />}
     </main>
   );
 }
