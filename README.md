@@ -26,6 +26,8 @@
 
 Mote 不是云端平台，也不准备替你管理账号。它只是一个运行在自己电脑上的轻量外壳：连接你已经拥有的模型接口，把配置、对话、上传内容和生成结果留在项目目录里。
 
+你可以将这个项目在本地部署，在里面配置 `seedance-1.5pro` 等等 的 `apikey` ，然后自由的使用。
+
 <p align="center">
   <img src="./assets/readme/mote-workspace.png" alt="Mote 主界面：历史对话、图片生成与创作输入框" width="100%" />
 </p>
