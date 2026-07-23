@@ -5,6 +5,7 @@ export const modelConfigSchema = z.object({
   name: z.string().min(1),
   modelId: z.string().min(1),
   type: z.enum(["chat", "image", "video"]),
+  maxReferenceImages: z.number().int().min(0).max(8).default(2),
 });
 
 export const providerConfigSchema = z.object({
@@ -63,7 +64,7 @@ export const imageOptionsSchema = z.object({
 });
 
 export const videoOptionsSchema = z.object({
-  referenceMode: z.enum(["first", "first_last"]),
+  referenceMode: z.enum(["text", "first", "first_last", "references"]),
   ratio: z.enum(["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]),
   resolution: z.enum(["480p", "720p", "1080p", "4k"]),
   duration: z.number().int().min(4).max(10),

@@ -5,6 +5,7 @@ export interface ModelConfig {
   name: string;
   modelId: string;
   type: ModelType;
+  maxReferenceImages: number;
 }
 
 export interface ProviderConfig {
@@ -63,7 +64,7 @@ export interface ImageOptions {
 }
 
 export interface VideoOptions {
-  referenceMode: "first" | "first_last";
+  referenceMode: "text" | "first" | "first_last" | "references";
   ratio: "adaptive" | "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16";
   resolution: "480p" | "720p" | "1080p" | "4k";
   duration: number;

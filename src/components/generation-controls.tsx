@@ -107,9 +107,10 @@ export function ImageControls({
 }
 
 export function VideoControls({
-  value, onChange,
+  value, maxReferenceImages, onChange,
 }: {
   value: VideoOptions;
+  maxReferenceImages: number;
   onChange: (value: VideoOptions) => void;
 }) {
   const [modeOpen, setModeOpen] = useState(false);
@@ -117,17 +118,24 @@ export function VideoControls({
   const close = () => { setModeOpen(false); setOptionsOpen(false); };
   const ref = useDismiss(modeOpen || optionsOpen, close);
   const ratioLabel = value.ratio === "adaptive" ? "智能比例" : value.ratio;
+  const modeLabel = value.referenceMode === "text" ? "文生视频" :
+    value.referenceMode === "first" ? "首帧" :
+      value.referenceMode === "first_last" ? "首尾帧" : "多图参考";
   return <div className="video-parameter-group" ref={ref}>
     <div className="parameter-control">
       <button type="button" className={`parameter-trigger mode-trigger ${modeOpen ? "active" : ""}`}
         aria-expanded={modeOpen} onClick={() => { setModeOpen((open) => !open); setOptionsOpen(false); }}>
-        参考生成 <ChevronDown size={13} />
+        {modeLabel} <ChevronDown size={13} />
       </button>
       {modeOpen && <div className="mode-popover">
         <small>选择模式</small>
         {([
+          ["text", "文生视频", "仅使用文字描述生成视频"],
           ["first", "首帧", "使用一张图片作为视频起始画面"],
           ["first_last", "首尾帧", "使用两张图片固定开头和结尾"],
+          ...(maxReferenceImages > 2 ? [[
+            "references", "多图参考", `使用 1–${maxReferenceImages} 张图片控制内容与风格`,
+          ] as const] : []),
         ] as const).map(([mode, title, note]) => <button type="button" key={mode}
           className={value.referenceMode === mode ? "selected" : ""}
           onClick={() => { onChange({ ...value, referenceMode: mode }); setModeOpen(false); }}>

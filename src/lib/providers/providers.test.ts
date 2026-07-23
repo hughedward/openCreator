@@ -84,4 +84,23 @@ describe("provider helpers", () => {
       duration: 5, count: 1, audio: true, watermark: false, cameraFixed: false,
     })).toThrow("首尾帧模式需要两张参考图");
   });
+
+  it("builds text-to-video content without images", () => {
+    const content = buildVideoContent("雨夜街道", [], {
+      referenceMode: "text", ratio: "16:9", resolution: "720p",
+      duration: 5, count: 1, audio: true, watermark: false, cameraFixed: false,
+    });
+    expect(content).toHaveLength(1);
+    expect(content[0]).toMatchObject({ type: "text" });
+  });
+
+  it("marks several multi-reference images as reference images", () => {
+    const content = buildVideoContent("角色保持一致", ["a", "b", "c"], {
+      referenceMode: "references", ratio: "adaptive", resolution: "720p",
+      duration: 5, count: 1, audio: true, watermark: false, cameraFixed: false,
+    });
+    expect(content.slice(1).map((item) => "role" in item ? item.role : undefined)).toEqual([
+      "reference_image", "reference_image", "reference_image",
+    ]);
+  });
 });

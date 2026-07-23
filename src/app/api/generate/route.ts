@@ -7,9 +7,10 @@ import { generateImage } from "@/lib/providers/image";
 import { createVideoTask } from "@/lib/providers/video";
 import { generateRequestSchema } from "@/lib/schemas";
 import type { ImageOptions, Message, VideoOptions } from "@/lib/types";
+import { validateReferenceCount } from "@/lib/reference-images";
 
 const defaultVideo: VideoOptions = {
-  referenceMode: "first", ratio: "adaptive", resolution: "720p", duration: 5,
+  referenceMode: "text", ratio: "adaptive", resolution: "720p", duration: 5,
   count: 1, audio: true, watermark: false, cameraFixed: false,
 };
 const defaultImage: ImageOptions = { ratio: "adaptive", resolution: "2K", count: 1 };
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
       assistant.status = "complete";
     } else {
       const options = input.videoOptions || defaultVideo;
+      validateReferenceCount(options.referenceMode, input.attachments.length, model.maxReferenceImages);
       assistant.taskIds = [];
       for (let index = 0; index < options.count; index++) {
         assistant.taskIds.push(await createVideoTask(

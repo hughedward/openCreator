@@ -14,13 +14,16 @@ export function buildVideoContent(prompt: string, images: string[], options: Vid
   if (options.referenceMode === "first" && images.length < 1) {
     throw new Error("首帧模式需要一张参考图");
   }
-  const usedImages = options.referenceMode === "first_last" ? images.slice(0, 2) : images.slice(0, 1);
+  const usedImages = options.referenceMode === "text" ? [] :
+    options.referenceMode === "first_last" ? images.slice(0, 2) :
+      options.referenceMode === "references" ? images : images.slice(0, 1);
   return [
     { type: "text", text: videoPrompt(prompt, options) },
     ...usedImages.map((url, index) => ({
       type: "image_url",
       image_url: { url },
-      role: index === 0 ? "first_frame" : "last_frame",
+      role: options.referenceMode === "references" ? "reference_image" :
+        index === 0 ? "first_frame" : "last_frame",
     })),
   ];
 }

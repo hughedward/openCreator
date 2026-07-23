@@ -3,7 +3,7 @@ import { appConfigSchema, conversationSchema, generateRequestSchema } from "./sc
 
 describe("appConfigSchema", () => {
   it("accepts a provider with several capability-specific models", () => {
-    const result = appConfigSchema.safeParse({
+    const result = appConfigSchema.parse({
       providers: [{
         id: "ark",
         name: "火山方舟",
@@ -16,7 +16,7 @@ describe("appConfigSchema", () => {
       }],
     });
 
-    expect(result.success).toBe(true);
+    expect(result.providers[0].models[0].maxReferenceImages).toBe(2);
   });
 
   it("rejects duplicate model identifiers in one provider", () => {
@@ -91,6 +91,32 @@ describe("generateRequestSchema", () => {
       imageOptions: { ratio: "1:1", resolution: "2K", count: 5 },
     });
 
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts text and multi-reference video modes", () => {
+    for (const referenceMode of ["text", "references"] as const) {
+      const result = generateRequestSchema.safeParse({
+        conversationId: "conversation-1", providerId: "ark", modelId: "video",
+        prompt: "测试", attachments: [],
+        videoOptions: {
+          referenceMode, ratio: "adaptive", resolution: "720p",
+          duration: 5, count: 1, audio: true, watermark: false, cameraFixed: false,
+        },
+      });
+      expect(result.success).toBe(true);
+    }
+  });
+
+  it("rejects reference image limits above eight", () => {
+    const result = appConfigSchema.safeParse({
+      providers: [{
+        id: "ark", name: "Ark", baseUrl: "https://example.com", apiKey: "secret",
+        models: [{
+          id: "video", name: "Video", modelId: "video", type: "video", maxReferenceImages: 9,
+        }],
+      }],
+    });
     expect(result.success).toBe(false);
   });
 });

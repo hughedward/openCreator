@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowUp, ChevronDown, ImagePlus, Menu, MoreHorizontal,
+  ArrowUp, BookOpen, ChevronDown, ImagePlus, Images, Menu, MoreHorizontal,
   PanelLeftClose, Plus, Settings, Trash2, X,
 } from "lucide-react";
 import type { AppConfig, Conversation, ImageOptions, MediaRef, Message, ModelConfig, VideoOptions } from "@/lib/types";
@@ -12,12 +12,13 @@ import { GenerationStatus } from "@/components/generation-status";
 import { ImageControls, VideoControls } from "@/components/generation-controls";
 import { textareaSize } from "@/lib/textarea-size";
 import { pickImageFiles } from "@/lib/image-files";
+import { referenceConstraint, validateReferenceCount } from "@/lib/reference-images";
 
 type PublicConfig = AppConfig & { providers: Array<AppConfig["providers"][number] & { hasApiKey?: boolean }> };
 type ModelChoice = { providerId: string; providerName: string; model: ModelConfig };
 
 const videoDefaults: VideoOptions = {
-  referenceMode: "first", ratio: "adaptive", resolution: "720p", duration: 5,
+  referenceMode: "text", ratio: "adaptive", resolution: "720p", duration: 5,
   count: 1, audio: true, watermark: false, cameraFixed: false,
 };
 const imageDefaults: ImageOptions = { ratio: "adaptive", resolution: "2K", count: 1 };
@@ -61,6 +62,11 @@ export function AppShell() {
   const active = conversations.find((item) => item.id === activeId);
   const selected = choices.find((item) =>
     item.providerId === active?.providerId && item.model.id === active?.modelId) || choices[0];
+  const videoConstraint = selected?.model.type === "video"
+    ? referenceConstraint(active?.videoOptions?.referenceMode || videoDefaults.referenceMode,
+      selected.model.maxReferenceImages)
+    : null;
+  const attachmentLimit = videoConstraint?.max ?? selected?.model.maxReferenceImages ?? 2;
 
   const load = useCallback(async () => {
     const [nextConfig, nextConversations] = await Promise.all([
@@ -69,7 +75,13 @@ export function AppShell() {
     ]);
     setConfig(nextConfig);
     setConversations(nextConversations);
-    if (nextConversations.length) setActiveId((id) => id || nextConversations[0].id);
+    if (nextConversations.length) {
+      const requested = typeof window === "undefined" ? null :
+        new URLSearchParams(window.location.search).get("conversation");
+      setActiveId((id) =>
+        requested && nextConversations.some((item) => item.id === requested)
+          ? requested : id || nextConversations[0].id);
+    }
   }, []);
 
   useEffect(() => {
@@ -152,7 +164,7 @@ export function AppShell() {
   };
 
   const upload = async (files: readonly File[]) => {
-    const selection = pickImageFiles(files, 2 - attachments.length);
+    const selection = pickImageFiles(files, attachmentLimit - attachments.length);
     if (selection.error) setError(selection.error);
     else setError("");
     if (!selection.accepted.length) return;
@@ -162,7 +174,7 @@ export function AppShell() {
       const uploaded = await request<MediaRef[]>("/api/uploads", {
         method: "POST", body: form,
       });
-      setAttachments((items) => [...items, ...uploaded].slice(0, 2));
+      setAttachments((items) => [...items, ...uploaded].slice(0, attachmentLimit));
     } catch (cause) { setError((cause as Error).message); }
   };
 
@@ -180,9 +192,12 @@ export function AppShell() {
     if (busy || !selected || (!draft.trim() && !attachments.length)) return;
     const currentVideoOptions = active?.videoOptions || videoDefaults;
     if (selected.model.type === "video") {
-      const required = currentVideoOptions.referenceMode === "first_last" ? 2 : 1;
-      if (attachments.length !== required) {
-        setError(required === 2 ? "首尾帧模式需要上传两张参考图" : "首帧模式需要上传一张参考图");
+      try {
+        validateReferenceCount(
+          currentVideoOptions.referenceMode, attachments.length, selected.model.maxReferenceImages,
+        );
+      } catch (cause) {
+        setError((cause as Error).message);
         return;
       }
     }
@@ -279,6 +294,7 @@ export function AppShell() {
           </button>
         </div>
         <button className="new-chat" onClick={create}><Plus size={16} /> 新对话</button>
+        <Link className="asset-link" href="/assets"><Images size={16} /> 资产</Link>
         <div className="history-label">最近</div>
         <nav className="history">
           {conversations.map((conversation) => (
@@ -294,7 +310,10 @@ export function AppShell() {
             </button>
           ))}
         </nav>
-        <Link className="settings-link" href="/settings"><Settings size={16} /> 设置</Link>
+        <div className="sidebar-utilities">
+          <Link className="settings-link" href="/settings"><Settings size={16} /> 设置</Link>
+          <Link className="settings-link" href="/docs"><BookOpen size={16} /> 文档</Link>
+        </div>
       </aside>
 
       {sidebarOpen && <button className="sidebar-scrim" onClick={() => setSidebarOpen(false)} aria-label="关闭侧栏" />}
@@ -368,7 +387,7 @@ export function AppShell() {
             <div className="drop-overlay" role="status">
               <ImagePlus size={20} />
               <strong>松手添加图片</strong>
-              <span>JPG、PNG 或 WebP，最多两张</span>
+              <span>JPG、PNG 或 WebP，最多 {attachmentLimit} 张</span>
             </div>
           )}
           {attachments.length > 0 && (
@@ -398,7 +417,10 @@ export function AppShell() {
                   void upload(event.target.files ? [...event.target.files] : []);
                   event.target.value = "";
                 }} />
-              <button className="icon-button" onClick={() => fileRef.current?.click()} aria-label="添加图片">
+              <button className="icon-button" onClick={() => fileRef.current?.click()}
+                disabled={attachmentLimit === 0}
+                title={attachmentLimit === 0 ? "文生视频模式不需要参考图" : undefined}
+                aria-label="添加图片">
                 <ImagePlus size={18} />
               </button>
               {selected?.model.type === "image" && <ImageControls
@@ -406,9 +428,12 @@ export function AppShell() {
                 onChange={(imageOptions) => changeGenerationOptions({ imageOptions })} />}
               {selected?.model.type === "video" && <VideoControls
                 value={active?.videoOptions || videoDefaults}
+                maxReferenceImages={selected.model.maxReferenceImages}
                 onChange={(videoOptions) => changeGenerationOptions({ videoOptions })} />}
               <span className="composer-spacer">{selected?.model.type === "video" && attachments.length > 0
-                ? attachments.length === 2 ? "首帧 · 尾帧" : "首帧"
+                ? (active?.videoOptions || videoDefaults).referenceMode === "references"
+                  ? `${attachments.length} 张参考图`
+                  : attachments.length === 2 ? "首帧 · 尾帧" : "首帧"
                 : attachments.length ? `${attachments.length} 张参考图` : ""}</span>
               <button className="send-button" onClick={send}
                 disabled={busy || !selected || (!draft.trim() && !attachments.length)} aria-label="发送">

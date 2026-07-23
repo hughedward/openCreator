@@ -10,7 +10,9 @@ import type { AppConfig, ModelConfig, ProviderConfig } from "@/lib/types";
 import { createClientId } from "@/lib/client-id";
 
 const id = () => createClientId();
-const emptyModel = (): ModelConfig => ({ id: id(), name: "", modelId: "", type: "chat" });
+const emptyModel = (): ModelConfig => ({
+  id: id(), name: "", modelId: "", type: "chat", maxReferenceImages: 2,
+});
 const emptyProvider = (): ProviderConfig => ({
   id: id(), name: "", baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
   apiKey: "", models: [emptyModel()],
@@ -116,7 +118,8 @@ export function SettingsForm() {
                 <div className="models-head"><h3>模型</h3><span>{provider.models.length} 个</span></div>
                 <div className="model-table">
                   <div className="model-row header">
-                    <span>显示名称</span><span>Model ID</span><span>类型</span><span>连接</span><span />
+                    <span>显示名称</span><span>Model ID</span><span>类型</span>
+                    <span>参考图上限</span><span>连接</span><span />
                   </div>
                   {provider.models.map((model, modelIndex) => (
                     <div className="model-entry" key={model.id}>
@@ -129,6 +132,12 @@ export function SettingsForm() {
                         onChange={(e) => updateModel(providerIndex, modelIndex, { type: e.target.value as ModelConfig["type"] })}>
                         <option value="chat">对话</option><option value="image">图像</option><option value="video">视频</option>
                       </select>
+                      <input className="reference-limit" type="number" min={0} max={8}
+                        value={model.maxReferenceImages}
+                        aria-label={`${model.name || "模型"}最大参考图数量`}
+                        onChange={(e) => updateModel(providerIndex, modelIndex, {
+                          maxReferenceImages: Math.min(8, Math.max(0, Number(e.target.value) || 0)),
+                        })} />
                       <button className={`test-model ${tests[model.id]?.state || ""}`}
                         disabled={tests[model.id]?.state === "loading"}
                         onClick={() => testModel(provider, model)}
