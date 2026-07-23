@@ -10,6 +10,7 @@ import type { AppConfig, Conversation, MediaRef, Message, ModelConfig, VideoOpti
 import { createClientId } from "@/lib/client-id";
 import { GenerationStatus } from "@/components/generation-status";
 import { textareaSize } from "@/lib/textarea-size";
+import { pickImageFiles } from "@/lib/image-files";
 
 type PublicConfig = AppConfig & { providers: Array<AppConfig["providers"][number] & { hasApiKey?: boolean }> };
 type ModelChoice = { providerId: string; providerName: string; model: ModelConfig };
@@ -44,10 +45,12 @@ export function AppShell() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [draggingImages, setDraggingImages] = useState(false);
   const [videoOptions, setVideoOptions] = useState(videoDefaults);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const dragDepthRef = useRef(0);
 
   const choices = useMemo<ModelChoice[]>(() => config.providers.flatMap((provider) =>
     provider.models.map((model) => ({
@@ -130,17 +133,29 @@ export function AppShell() {
     await persist({ ...active, providerId, modelId, updatedAt: new Date().toISOString() });
   };
 
-  const upload = async (files: FileList | null) => {
-    if (!files?.length) return;
-    setError("");
+  const upload = async (files: readonly File[]) => {
+    const selection = pickImageFiles(files, 2 - attachments.length);
+    if (selection.error) setError(selection.error);
+    else setError("");
+    if (!selection.accepted.length) return;
     const form = new FormData();
-    [...files].slice(0, 2).forEach((file) => form.append("files", file));
+    selection.accepted.forEach((file) => form.append("files", file));
     try {
       const uploaded = await request<MediaRef[]>("/api/uploads", {
         method: "POST", body: form,
       });
       setAttachments((items) => [...items, ...uploaded].slice(0, 2));
     } catch (cause) { setError((cause as Error).message); }
+  };
+
+  const pastedImages = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = [...event.clipboardData.items]
+      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+    if (!files.length) return;
+    event.preventDefault();
+    void upload(files);
   };
 
   const send = async () => {
@@ -294,7 +309,36 @@ export function AppShell() {
           )}
         </div>
 
-        <div className="composer-region">
+        <div className={`composer-region ${draggingImages ? "drag-active" : ""}`}
+          onDragEnter={(event) => {
+            if (!event.dataTransfer.types.includes("Files")) return;
+            event.preventDefault();
+            dragDepthRef.current += 1;
+            setDraggingImages(true);
+          }}
+          onDragOver={(event) => {
+            if (!event.dataTransfer.types.includes("Files")) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+            if (dragDepthRef.current === 0) setDraggingImages(false);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            dragDepthRef.current = 0;
+            setDraggingImages(false);
+            void upload([...event.dataTransfer.files]);
+          }}>
+          {draggingImages && (
+            <div className="drop-overlay" role="status">
+              <ImagePlus size={20} />
+              <strong>松手添加图片</strong>
+              <span>JPG、PNG 或 WebP，最多两张</span>
+            </div>
+          )}
           {selected?.model.type === "video" && (
             <VideoControls value={videoOptions} onChange={setVideoOptions} />
           )}
@@ -312,6 +356,7 @@ export function AppShell() {
           {error && <div className="inline-error">{error}<button onClick={() => setError("")}><X size={13} /></button></div>}
           <div className="composer">
             <textarea ref={textareaRef} value={draft} onChange={(event) => setDraft(event.target.value)}
+              onPaste={pastedImages}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); }
               }}
@@ -320,7 +365,10 @@ export function AppShell() {
               rows={1} />
             <div className="composer-tools">
               <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden
-                onChange={(event) => upload(event.target.files)} />
+                onChange={(event) => {
+                  void upload(event.target.files ? [...event.target.files] : []);
+                  event.target.value = "";
+                }} />
               <button className="icon-button" onClick={() => fileRef.current?.click()} aria-label="添加图片">
                 <ImagePlus size={18} />
               </button>

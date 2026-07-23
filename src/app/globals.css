@@ -149,6 +149,15 @@ a { color: inherit; text-decoration: none; }
   background: var(--paper); box-shadow: 0 10px 36px oklch(20% 0.02 80 / .06);
   transition: border-color .16s, box-shadow .16s;
 }
+.drop-overlay {
+  position: absolute; z-index: 8; inset: 0 0 18px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px; border: 1px dashed var(--muted);
+  border-radius: 18px; color: var(--ink); background: color-mix(in oklch, var(--paper) 94%, transparent);
+  backdrop-filter: blur(5px); pointer-events: none;
+}
+.drop-overlay strong { margin-top: 3px; font-size: 12px; }
+.drop-overlay span { color: var(--faint); font-size: 9px; }
+.drag-active .composer { border-color: var(--muted); }
 .composer:focus-within { border-color: oklch(65% 0.01 82); box-shadow: 0 12px 42px oklch(20% 0.02 80 / .09); }
 .composer textarea {
   width: 100%; height: 42px; max-height: 156px; min-height: 42px; overflow-y: hidden;
