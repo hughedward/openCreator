@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowUp, Check, ChevronDown, ImagePlus, Menu, MoreHorizontal,
+  ArrowUp, ChevronDown, ImagePlus, Menu, MoreHorizontal,
   PanelLeftClose, Plus, Settings, Trash2, X,
 } from "lucide-react";
-import type { AppConfig, Conversation, MediaRef, Message, ModelConfig, VideoOptions } from "@/lib/types";
+import type { AppConfig, Conversation, ImageOptions, MediaRef, Message, ModelConfig, VideoOptions } from "@/lib/types";
 import { createClientId } from "@/lib/client-id";
 import { GenerationStatus } from "@/components/generation-status";
+import { ImageControls, VideoControls } from "@/components/generation-controls";
 import { textareaSize } from "@/lib/textarea-size";
 import { pickImageFiles } from "@/lib/image-files";
 
@@ -16,9 +17,10 @@ type PublicConfig = AppConfig & { providers: Array<AppConfig["providers"][number
 type ModelChoice = { providerId: string; providerName: string; model: ModelConfig };
 
 const videoDefaults: VideoOptions = {
-  ratio: "16:9", resolution: "720p", duration: 5,
-  audio: true, watermark: false, cameraFixed: false,
+  referenceMode: "first", ratio: "adaptive", resolution: "720p", duration: 5,
+  count: 1, audio: true, watermark: false, cameraFixed: false,
 };
+const imageDefaults: ImageOptions = { ratio: "adaptive", resolution: "2K", count: 1 };
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
@@ -32,7 +34,8 @@ function freshConversation(choice?: ModelChoice): Conversation {
   return {
     id: createClientId(), title: "新对话",
     providerId: choice?.providerId, modelId: choice?.model.id,
-    createdAt: now, updatedAt: now, messages: [],
+    createdAt: now, updatedAt: now,
+    imageOptions: imageDefaults, videoOptions: videoDefaults, messages: [],
   };
 }
 
@@ -46,7 +49,6 @@ export function AppShell() {
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [draggingImages, setDraggingImages] = useState(false);
-  const [videoOptions, setVideoOptions] = useState(videoDefaults);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -133,6 +135,22 @@ export function AppShell() {
     await persist({ ...active, providerId, modelId, updatedAt: new Date().toISOString() });
   };
 
+  const changeGenerationOptions = (options: { imageOptions?: ImageOptions; videoOptions?: VideoOptions }) => {
+    if (!active) {
+      const conversation = { ...freshConversation(selected), ...options };
+      setConversations((items) => [conversation, ...items]);
+      setActiveId(conversation.id);
+      void persist(conversation).catch((cause) => setError(cause.message));
+      return;
+    }
+    const updated = { ...active, ...options, updatedAt: new Date().toISOString() };
+    setConversations((items) => items.map((item) => item.id === updated.id ? updated : item));
+    void request<Conversation>(`/api/conversations/${updated.id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updated),
+    }).catch((cause) => setError(cause.message));
+  };
+
   const upload = async (files: readonly File[]) => {
     const selection = pickImageFiles(files, 2 - attachments.length);
     if (selection.error) setError(selection.error);
@@ -160,6 +178,14 @@ export function AppShell() {
 
   const send = async () => {
     if (busy || !selected || (!draft.trim() && !attachments.length)) return;
+    const currentVideoOptions = active?.videoOptions || videoDefaults;
+    if (selected.model.type === "video") {
+      const required = currentVideoOptions.referenceMode === "first_last" ? 2 : 1;
+      if (attachments.length !== required) {
+        setError(required === 2 ? "首尾帧模式需要上传两张参考图" : "首帧模式需要上传一张参考图");
+        return;
+      }
+    }
     setBusy(true);
     setError("");
     let pendingMessageId: string | undefined;
@@ -205,7 +231,9 @@ export function AppShell() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversationId: conversation.id, providerId: selected.providerId,
-          modelId: selected.model.id, prompt, attachments: usedAttachments, videoOptions,
+          modelId: selected.model.id, prompt, attachments: usedAttachments,
+          imageOptions: conversation.imageOptions || imageDefaults,
+          videoOptions: conversation.videoOptions || videoDefaults,
         }),
       });
       setConversations((items) => [result.conversation, ...items.filter((item) => item.id !== result.conversation.id)]);
@@ -224,12 +252,16 @@ export function AppShell() {
   };
 
   useEffect(() => {
-    const pending = active?.messages.find((message) => message.status === "processing" && message.taskId);
-    if (!pending?.taskId || !active) return;
+    const pending = active?.messages.find((message) =>
+      message.status === "processing" && (message.taskIds?.length || message.taskId));
+    if (!pending || !active) return;
+    const taskId = pending.taskIds?.find((id) =>
+      !pending.completedTaskIds?.includes(id) && !pending.failedTaskIds?.includes(id)) || pending.taskId;
+    if (!taskId) return;
     const timer = window.setTimeout(async () => {
       try {
         const result = await request<{ conversation: Conversation }>(
-          `/api/tasks/${pending.taskId}?conversationId=${active.id}`,
+          `/api/tasks/${taskId}?conversationId=${active.id}`,
         );
         setConversations((items) => [result.conversation, ...items.filter((item) => item.id !== active.id)]);
       } catch (cause) { setError((cause as Error).message); }
@@ -302,7 +334,7 @@ export function AppShell() {
             <div className="message-list">
               {active.messages.map((message) => (
                 <MessageView key={message.id} message={message}
-                  processingType={message.taskId ? "video" : selected?.model.type} />
+                  processingType={message.taskId || message.taskIds?.length ? "video" : selected?.model.type} />
               ))}
               <div ref={bottomRef} />
             </div>
@@ -339,9 +371,6 @@ export function AppShell() {
               <span>JPG、PNG 或 WebP，最多两张</span>
             </div>
           )}
-          {selected?.model.type === "video" && (
-            <VideoControls value={videoOptions} onChange={setVideoOptions} />
-          )}
           {attachments.length > 0 && (
             <div className="attachment-strip">
               {attachments.map((item, index) => (
@@ -372,7 +401,13 @@ export function AppShell() {
               <button className="icon-button" onClick={() => fileRef.current?.click()} aria-label="添加图片">
                 <ImagePlus size={18} />
               </button>
-              <span>{selected?.model.type === "video" && attachments.length > 0
+              {selected?.model.type === "image" && <ImageControls
+                value={active?.imageOptions || imageDefaults}
+                onChange={(imageOptions) => changeGenerationOptions({ imageOptions })} />}
+              {selected?.model.type === "video" && <VideoControls
+                value={active?.videoOptions || videoDefaults}
+                onChange={(videoOptions) => changeGenerationOptions({ videoOptions })} />}
+              <span className="composer-spacer">{selected?.model.type === "video" && attachments.length > 0
                 ? attachments.length === 2 ? "首帧 · 尾帧" : "首帧"
                 : attachments.length ? `${attachments.length} 张参考图` : ""}</span>
               <button className="send-button" onClick={send}
@@ -420,24 +455,5 @@ function MessageView({
         ))}
       </div>
     </article>
-  );
-}
-
-function VideoControls({ value, onChange }: { value: VideoOptions; onChange: (value: VideoOptions) => void }) {
-  return (
-    <div className="video-controls">
-      <label>比例<select value={value.ratio} onChange={(e) => onChange({ ...value, ratio: e.target.value })}>
-        {["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"].map((item) => <option key={item}>{item}</option>)}
-      </select></label>
-      <label>清晰度<select value={value.resolution} onChange={(e) => onChange({ ...value, resolution: e.target.value })}>
-        {["480p", "720p", "1080p"].map((item) => <option key={item}>{item}</option>)}
-      </select></label>
-      <label>时长<select value={value.duration} onChange={(e) => onChange({ ...value, duration: Number(e.target.value) })}>
-        {[4, 5, 6, 8, 10].map((item) => <option key={item} value={item}>{item}s</option>)}
-      </select></label>
-      <button className={value.audio ? "on" : ""} onClick={() => onChange({ ...value, audio: !value.audio })}>
-        {value.audio && <Check size={12} />} 音频
-      </button>
-    </div>
   );
 }

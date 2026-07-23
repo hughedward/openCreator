@@ -16,21 +16,26 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     );
     const task = await getVideoTask(provider, taskId);
     const status = String(task.status || "").toLowerCase();
-    const message = conversation.messages.find((item) => item.taskId === taskId);
+    const message = conversation.messages.find((item) =>
+      item.taskId === taskId || item.taskIds?.includes(taskId));
     if (!message) throw new Error("生成消息不存在");
 
     if (["succeeded", "success", "completed"].includes(status)) {
       const url = task.content?.video_url || task.output?.video_url || task.video_url;
       if (!url) throw new Error("任务完成但没有返回视频地址");
-      message.media = [await downloadMedia(url, "video")];
-      message.status = "complete";
+      message.media = [...(message.media || []), await downloadMedia(url, "video")];
+      message.completedTaskIds = [...new Set([...(message.completedTaskIds || []), taskId])];
       conversation.updatedAt = new Date().toISOString();
-      await saveConversation(conversation);
     } else if (["failed", "cancelled", "canceled"].includes(status)) {
-      message.status = "failed";
-      message.error = task.error?.message || "视频生成失败";
-      await saveConversation(conversation);
+      message.failedTaskIds = [...new Set([...(message.failedTaskIds || []), taskId])];
+      message.error = task.error?.message || "部分视频生成失败";
     }
+    const terminalCount = (message.completedTaskIds?.length || 0) + (message.failedTaskIds?.length || 0);
+    const totalCount = message.taskIds?.length || 1;
+    if (terminalCount >= totalCount) {
+      message.status = message.completedTaskIds?.length ? "complete" : "failed";
+    }
+    await saveConversation(conversation);
     return ok({ status, conversation });
   } catch (error) { return failure(error); }
 }

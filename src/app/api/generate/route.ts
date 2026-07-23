@@ -6,12 +6,13 @@ import { resolveModel } from "@/lib/providers/common";
 import { generateImage } from "@/lib/providers/image";
 import { createVideoTask } from "@/lib/providers/video";
 import { generateRequestSchema } from "@/lib/schemas";
-import type { Message, VideoOptions } from "@/lib/types";
+import type { ImageOptions, Message, VideoOptions } from "@/lib/types";
 
 const defaultVideo: VideoOptions = {
-  ratio: "16:9", resolution: "720p", duration: 5,
-  audio: true, watermark: false, cameraFixed: false,
+  referenceMode: "first", ratio: "adaptive", resolution: "720p", duration: 5,
+  count: 1, audio: true, watermark: false, cameraFixed: false,
 };
+const defaultImage: ImageOptions = { ratio: "adaptive", resolution: "2K", count: 1 };
 
 export async function POST(request: Request) {
   try {
@@ -25,17 +26,28 @@ export async function POST(request: Request) {
     };
     conversation.providerId = input.providerId;
     conversation.modelId = input.modelId;
+    if (input.imageOptions) conversation.imageOptions = input.imageOptions;
+    if (input.videoOptions) conversation.videoOptions = input.videoOptions;
 
     if (model.type === "chat") {
       assistant.content = await chat(provider, model, conversation.messages);
       assistant.status = "complete";
     } else if (model.type === "image") {
-      assistant.media = await generateImage(provider, model, input.prompt, input.attachments);
+      assistant.media = await generateImage(
+        provider, model, input.prompt, input.attachments, input.imageOptions || defaultImage,
+      );
       assistant.status = "complete";
     } else {
-      assistant.taskId = await createVideoTask(
-        provider, model, input.prompt, input.attachments, input.videoOptions || defaultVideo,
-      );
+      const options = input.videoOptions || defaultVideo;
+      assistant.taskIds = [];
+      for (let index = 0; index < options.count; index++) {
+        assistant.taskIds.push(await createVideoTask(
+          provider, model, input.prompt, input.attachments, options,
+        ));
+      }
+      assistant.taskId = assistant.taskIds[0];
+      assistant.completedTaskIds = [];
+      assistant.failedTaskIds = [];
     }
     conversation.messages.push(assistant);
     conversation.updatedAt = new Date().toISOString();

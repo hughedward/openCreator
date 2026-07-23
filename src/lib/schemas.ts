@@ -43,8 +43,34 @@ export const messageSchema = z.object({
   status: z.enum(["complete", "processing", "failed"]),
   error: z.string().optional(),
   taskId: z.string().optional(),
+  taskIds: z.array(z.string()).optional(),
+  completedTaskIds: z.array(z.string()).optional(),
+  failedTaskIds: z.array(z.string()).optional(),
   attachments: z.array(mediaRefSchema).optional(),
   media: z.array(mediaRefSchema).optional(),
+});
+
+export const imageOptionsSchema = z.object({
+  ratio: z.enum(["adaptive", "1:1", "3:4", "4:3", "16:9", "9:16", "2:3", "3:2", "21:9", "custom"]),
+  resolution: z.enum(["2K", "4K"]),
+  count: z.number().int().min(1).max(4),
+  width: z.number().int().min(512).max(4096).optional(),
+  height: z.number().int().min(512).max(4096).optional(),
+}).superRefine((options, ctx) => {
+  if (options.ratio === "custom" && (!options.width || !options.height)) {
+    ctx.addIssue({ code: "custom", message: "自定义尺寸需要填写宽和高" });
+  }
+});
+
+export const videoOptionsSchema = z.object({
+  referenceMode: z.enum(["first", "first_last"]),
+  ratio: z.enum(["adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]),
+  resolution: z.enum(["480p", "720p", "1080p", "4k"]),
+  duration: z.number().int().min(4).max(10),
+  count: z.number().int().min(1).max(4),
+  audio: z.boolean(),
+  watermark: z.boolean(),
+  cameraFixed: z.boolean(),
 });
 
 export const conversationSchema = z.object({
@@ -54,16 +80,9 @@ export const conversationSchema = z.object({
   modelId: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  imageOptions: imageOptionsSchema.optional(),
+  videoOptions: videoOptionsSchema.optional(),
   messages: z.array(messageSchema),
-});
-
-export const videoOptionsSchema = z.object({
-  ratio: z.string(),
-  resolution: z.string(),
-  duration: z.number().int().min(2).max(12),
-  audio: z.boolean(),
-  watermark: z.boolean(),
-  cameraFixed: z.boolean(),
 });
 
 export const generateRequestSchema = z.object({
@@ -72,5 +91,6 @@ export const generateRequestSchema = z.object({
   modelId: z.string(),
   prompt: z.string(),
   attachments: z.array(mediaRefSchema).default([]),
+  imageOptions: imageOptionsSchema.optional(),
   videoOptions: videoOptionsSchema.optional(),
 });

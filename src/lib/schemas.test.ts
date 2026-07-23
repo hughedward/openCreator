@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appConfigSchema, conversationSchema } from "./schemas";
+import { appConfigSchema, conversationSchema, generateRequestSchema } from "./schemas";
 
 describe("appConfigSchema", () => {
   it("accepts a provider with several capability-specific models", () => {
@@ -58,5 +58,39 @@ describe("conversationSchema", () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it("persists image and video generation options per conversation", () => {
+    const result = conversationSchema.safeParse({
+      id: "conversation-2",
+      title: "参数测试",
+      createdAt: "2026-07-23T00:00:00.000Z",
+      updatedAt: "2026-07-23T00:01:00.000Z",
+      messages: [],
+      imageOptions: {
+        ratio: "3:2", resolution: "4K", count: 4,
+      },
+      videoOptions: {
+        referenceMode: "first_last", ratio: "adaptive", resolution: "720p",
+        duration: 5, count: 4, audio: true, watermark: false, cameraFixed: false,
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("generateRequestSchema", () => {
+  it("rejects generation counts outside the safe 1–4 range", () => {
+    const result = generateRequestSchema.safeParse({
+      conversationId: "conversation-1",
+      providerId: "ark",
+      modelId: "image",
+      prompt: "测试",
+      attachments: [],
+      imageOptions: { ratio: "1:1", resolution: "2K", count: 5 },
+    });
+
+    expect(result.success).toBe(false);
   });
 });

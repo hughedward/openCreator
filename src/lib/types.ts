@@ -35,6 +35,9 @@ export interface Message {
   status: "complete" | "processing" | "failed";
   error?: string;
   taskId?: string;
+  taskIds?: string[];
+  completedTaskIds?: string[];
+  failedTaskIds?: string[];
   attachments?: MediaRef[];
   media?: MediaRef[];
 }
@@ -46,13 +49,25 @@ export interface Conversation {
   modelId?: string;
   createdAt: string;
   updatedAt: string;
+  imageOptions?: ImageOptions;
+  videoOptions?: VideoOptions;
   messages: Message[];
 }
 
+export interface ImageOptions {
+  ratio: "adaptive" | "1:1" | "3:4" | "4:3" | "16:9" | "9:16" | "2:3" | "3:2" | "21:9" | "custom";
+  resolution: "2K" | "4K";
+  count: number;
+  width?: number;
+  height?: number;
+}
+
 export interface VideoOptions {
-  ratio: string;
-  resolution: string;
+  referenceMode: "first" | "first_last";
+  ratio: "adaptive" | "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16";
+  resolution: "480p" | "720p" | "1080p" | "4k";
   duration: number;
+  count: number;
   audio: boolean;
   watermark: boolean;
   cameraFixed: boolean;
