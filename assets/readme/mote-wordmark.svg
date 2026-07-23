@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 280" role="img" aria-labelledby="title description">
+  <title id="title">openCreator Mote</title>
+  <desc id="description">Mote local creative workspace editorial wordmark</desc>
+
+  <g fill="#171716">
+    <text
+      x="460"
+      y="42"
+      text-anchor="middle"
+      font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+      font-size="13"
+      font-weight="600"
+      letter-spacing="8"
+    >OPENCREATOR</text>
+
+    <text
+      x="460"
+      y="184"
+      text-anchor="middle"
+      font-family="Iowan Old Style, Baskerville, Baskerville Old Face, Times New Roman, serif"
+      font-size="164"
+      font-weight="400"
+      letter-spacing="-8"
+    >Mote</text>
+
+    <text
+      x="460"
+      y="246"
+      text-anchor="middle"
+      font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+      font-size="13"
+      font-weight="500"
+      letter-spacing="7"
+    >LOCAL CREATIVE WORKSPACE</text>
+  </g>
+
+  <g fill="none" stroke-linecap="round">
+    <path d="M88 211 C172 211 211 212 277 212" stroke="#9b978f" stroke-width="1.5" />
+    <path d="M644 212 C708 212 744 211 832 211" stroke="#9b978f" stroke-width="1.5" />
+    <path
+      d="M832 211 C851 211 859 202 869 188 C875 180 880 179 885 187"
+      stroke="#6f7651"
+      stroke-width="2"
+    />
+  </g>
+
+  <circle cx="88" cy="211" r="3" fill="#171716" />
+  <circle cx="832" cy="211" r="3" fill="#171716" />
+</svg>
