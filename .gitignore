@@ -1,0 +1,77 @@
+# Local AI/tooling workspaces and project notes
+.claude/
+.codex/
+ddocs/
+docs/
+
+# Dependencies
+node_modules/
+
+# Package manager caches
+.npm/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnpm-store/
+
+# Next.js and production builds
+.next/
+out/
+dist/
+build/
+.vercel/
+
+# Tests and browser automation
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+.playwright-mcp/
+
+# TypeScript and tooling caches
+*.tsbuildinfo
+next-env.d.ts
+.eslintcache
+.stylelintcache
+.turbo/
+.cache/
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+
+# Logs and runtime files
+*.log
+logs/
+*.pid
+*.pid.lock
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local uploads and generated data
+data/
+uploads/
+storage/
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating system files
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
