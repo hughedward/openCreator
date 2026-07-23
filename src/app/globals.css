@@ -152,6 +152,11 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: -.035em;
 }
 .empty-state p { margin: 13px 0 0; color: var(--muted); font-size: 14px; }
+.empty-state-prompt {
+  min-height: 22px; transition: opacity .24s ease, transform .24s ease;
+}
+.empty-state-prompt.fading { opacity: 0; transform: translateY(2px); }
+.empty-state-prompt .type-cursor { background: var(--faint); }
 .text-link { margin-top: 25px; padding-bottom: 3px; border-bottom: 1px solid var(--ink); font-size: 13px; font-weight: 600; }
 .message-list { width: min(760px, calc(100% - 40px)); margin: 0 auto; padding: 48px 0 40px; }
 .message { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 20px; padding: 0 0 44px; }

@@ -12,6 +12,7 @@ import { GenerationStatus } from "@/components/generation-status";
 import { ImageControls, VideoControls } from "@/components/generation-controls";
 import { HistoryMenu } from "@/components/history-menu";
 import { ConversationNavigator } from "@/components/conversation-navigator";
+import { EmptyStatePrompt } from "@/components/empty-state-prompt";
 import { textareaSize } from "@/lib/textarea-size";
 import { pickImageFiles } from "@/lib/image-files";
 import { referenceConstraint, validateReferenceCount } from "@/lib/reference-images";
@@ -353,7 +354,9 @@ export function AppShell() {
             <div className="empty-state">
               <div className="empty-mark">M</div>
               <h1>今天，想创造什么？</h1>
-              <p>{choices.length ? "输入一段话，或加入图片作为参考。" : "先添加一个供应商和模型，然后开始。"}</p>
+              {choices.length && selected
+                ? <EmptyStatePrompt key={selected.model.type} type={selected.model.type} />
+                : <p>先添加一个供应商和模型，然后开始。</p>}
               {!choices.length && <Link className="text-link" href="/settings">前往设置 <span>↗</span></Link>}
             </div>
           ) : (
