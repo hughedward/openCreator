@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiUrl, healthUrl } from "./common";
-import { toChatMessages } from "./chat";
-import { buildImageRequest, imageSize } from "./image";
-import { buildVideoContent, videoPrompt } from "./video";
+import { chat, toChatMessages } from "./chat";
+import { buildImageRequest, generateImage, imageSize } from "./image";
+import { buildVideoContent, cancelVideoTask, videoPrompt } from "./video";
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("provider helpers", () => {
   it("joins base URLs without duplicating the API version", () => {
@@ -109,5 +111,56 @@ describe("provider helpers", () => {
     expect(content.slice(1).map((item) => "role" in item ? item.role : undefined)).toEqual([
       "reference_image", "reference_image", "reference_image",
     ]);
+  });
+
+  it("cancels a queued Ark video task with the provider delete endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await cancelVideoTask({
+      id: "ark",
+      name: "Ark",
+      baseUrl: "https://ark.cn-beijing.volces.com",
+      apiKey: "secret",
+      apiType: "ark",
+      models: [],
+    }, "cgt-123");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/cgt-123",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("passes an abort signal to chat and image provider requests", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [{ message: { content: "ok" } }],
+      }), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+    const provider = {
+      id: "ark", name: "Ark", baseUrl: "https://ark.example", apiKey: "secret",
+      apiType: "ark" as const, models: [],
+    };
+
+    await chat(provider, {
+      id: "chat", name: "Chat", modelId: "chat", type: "chat",
+      maxReferenceImages: 2, maxVideoDuration: 10,
+    }, [], controller.signal);
+    await generateImage(provider, {
+      id: "image", name: "Image", modelId: "image", type: "image",
+      maxReferenceImages: 2, maxVideoDuration: 10,
+    }, "test", [], { ratio: "1:1", resolution: "2K", count: 1 }, controller.signal);
+
+    expect(fetchMock.mock.calls[0][1]).toEqual(expect.objectContaining({ signal: controller.signal }));
+    expect(fetchMock.mock.calls[1][1]).toEqual(expect.objectContaining({ signal: controller.signal }));
   });
 });

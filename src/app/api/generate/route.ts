@@ -32,11 +32,12 @@ export async function POST(request: Request) {
     if (input.videoOptions) conversation.videoOptions = input.videoOptions;
 
     if (model.type === "chat") {
-      assistant.content = await chat(provider, model, conversation.messages);
+      assistant.content = await chat(provider, model, conversation.messages, request.signal);
       assistant.status = "complete";
     } else if (model.type === "image") {
       assistant.media = await generateImage(
         provider, model, input.prompt, input.attachments, input.imageOptions || defaultImage,
+        request.signal,
       );
       assistant.status = "complete";
     } else {
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
       for (let index = 0; index < options.count; index++) {
         assistant.taskIds.push(await createVideoTask(
           provider, model, input.prompt, input.attachments, options,
+          request.signal,
         ));
       }
       assistant.taskId = assistant.taskIds[0];

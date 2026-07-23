@@ -36,7 +36,7 @@ export interface Message {
   role: "user" | "assistant" | "system";
   content: string;
   createdAt: string;
-  status: "complete" | "processing" | "failed";
+  status: "complete" | "processing" | "failed" | "stopped";
   error?: string;
   taskId?: string;
   taskIds?: string[];

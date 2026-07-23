@@ -262,6 +262,8 @@ a { color: inherit; text-decoration: none; }
   color: var(--paper); background: var(--dark);
 }
 .send-button:disabled { cursor: default; opacity: .22; }
+.send-button.is-stopping { cursor: pointer; opacity: 1; }
+.message-stopped { color: var(--faint); font-size: 12px; }
 .spinner { width: 13px; height: 13px; border: 1.5px solid oklch(100% 0 0 / .35); border-top-color: white; border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .composer-note { margin: 8px 0 0; color: var(--faint); font-size: 9px; text-align: center; }
@@ -481,13 +483,14 @@ a { color: inherit; text-decoration: none; }
   grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr));
   gap: 22px 16px;
 }
-.asset-card { min-width: 0; }
+.asset-card { position: relative; min-width: 0; }
 .asset-preview {
   aspect-ratio: 4 / 3; overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: var(--warm);
 }
 .asset-preview img, .asset-preview video { width: 100%; height: 100%; display: block; object-fit: cover; }
-.asset-details { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 3px 5px; }
+.asset-details { position: relative; display: flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 10px 3px 5px; }
 .asset-details > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.asset-details > div:first-child { margin-right: auto; }
 .asset-details strong { font-size: 11px; }
 .asset-details span { overflow: hidden; color: var(--faint); font-size: 9px; white-space: nowrap; text-overflow: ellipsis; }
 .asset-download {
@@ -495,6 +498,35 @@ a { color: inherit; text-decoration: none; }
   border-radius: 8px; color: var(--muted);
 }
 .asset-download:hover { color: var(--ink); background: var(--warm); }
+.asset-menu { position: relative; flex: 0 0 auto; }
+.asset-menu.is-open { z-index: 20; }
+.asset-more {
+  width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px;
+  color: var(--muted); background: transparent;
+}
+.asset-more:hover, .asset-more[aria-expanded=true] { color: var(--ink); background: var(--warm); }
+.asset-popover {
+  position: absolute; z-index: 30; top: 34px; right: 0; width: 184px; padding: 6px;
+  border: 1px solid var(--line); border-radius: 11px; background: var(--paper);
+  box-shadow: 0 12px 32px oklch(20% .02 80 / .14);
+  animation: popover-in .14s cubic-bezier(.16, 1, .3, 1);
+}
+.asset-action {
+  width: 100%; height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 9px;
+  border-radius: 7px; color: var(--muted); background: transparent; font-size: 11px; text-align: left;
+}
+.asset-action:hover { color: var(--ink); background: var(--warm); }
+.asset-action.asset-delete { color: var(--danger); }
+.asset-action.asset-delete:hover { background: color-mix(in oklch, var(--danger) 7%, var(--paper)); }
+.asset-confirm { padding: 7px; }
+.asset-confirm strong { display: block; font-size: 11px; }
+.asset-confirm > span { display: block; margin-top: 3px; color: var(--faint); font-size: 9px; line-height: 1.45; }
+.asset-confirm > div { display: flex; justify-content: flex-end; gap: 5px; margin-top: 11px; }
+.asset-confirm button {
+  height: 28px; padding: 0 8px; border-radius: 7px; color: var(--muted);
+  background: var(--warm); font-size: 9px;
+}
+.asset-confirm button.danger { color: var(--paper); background: var(--danger); }
 .asset-source { display: block; padding: 0 3px; overflow: hidden; color: var(--muted); font-size: 9px; white-space: nowrap; text-overflow: ellipsis; }
 .asset-source:not(.muted):hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .asset-source.muted { color: var(--faint); }

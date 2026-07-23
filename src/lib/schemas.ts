@@ -47,7 +47,7 @@ export const messageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
   content: z.string(),
   createdAt: z.string(),
-  status: z.enum(["complete", "processing", "failed"]),
+  status: z.enum(["complete", "processing", "failed", "stopped"]),
   error: z.string().optional(),
   taskId: z.string().optional(),
   taskIds: z.array(z.string()).optional(),

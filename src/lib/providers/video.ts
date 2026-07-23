@@ -30,12 +30,12 @@ export function buildVideoContent(prompt: string, images: string[], options: Vid
 
 export async function createVideoTask(
   provider: ProviderConfig, model: ModelConfig, prompt: string,
-  attachments: MediaRef[], options: VideoOptions,
+  attachments: MediaRef[], options: VideoOptions, signal?: AbortSignal,
 ) {
   const images = await Promise.all(attachments.map(attachmentDataUrl));
   const content = buildVideoContent(prompt, images, options);
   const data = await upstream(apiUrl(provider.baseUrl, "contents/generations/tasks", provider.apiType), provider, {
-    method: "POST", body: JSON.stringify({ model: model.modelId, content }),
+    method: "POST", signal, body: JSON.stringify({ model: model.modelId, content }),
   });
   return data.id as string;
 }
@@ -44,4 +44,10 @@ export async function getVideoTask(provider: ProviderConfig, taskId: string) {
   return upstream(apiUrl(
     provider.baseUrl, `contents/generations/tasks/${taskId}`, provider.apiType,
   ), provider);
+}
+
+export async function cancelVideoTask(provider: ProviderConfig, taskId: string) {
+  return upstream(apiUrl(
+    provider.baseUrl, `contents/generations/tasks/${taskId}`, provider.apiType,
+  ), provider, { method: "DELETE" });
 }

@@ -74,6 +74,25 @@ describe("conversationSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("persists a user-stopped generation", () => {
+    const result = conversationSchema.parse({
+      id: "conversation-stopped",
+      title: "停止测试",
+      createdAt: "2026-07-23T00:00:00.000Z",
+      updatedAt: "2026-07-23T00:01:00.000Z",
+      messages: [{
+        id: "message-stopped",
+        role: "assistant",
+        content: "",
+        createdAt: "2026-07-23T00:01:00.000Z",
+        status: "stopped",
+        error: "已停止生成",
+      }],
+    });
+
+    expect(result.messages[0].status).toBe("stopped");
+  });
+
   it("persists image and video generation options per conversation", () => {
     const result = conversationSchema.safeParse({
       id: "conversation-2",

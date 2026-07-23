@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import Link from "next/link";
 import {
   ArrowUp, BookOpen, ChevronDown, ImagePlus, Images, Menu,
-  PanelLeftClose, Plus, Settings, X,
+  PanelLeftClose, Plus, Settings, Square, X,
 } from "lucide-react";
 import type { AppConfig, Conversation, ImageOptions, MediaRef, Message, ModelConfig, VideoOptions } from "@/lib/types";
 import { createClientId } from "@/lib/client-id";
@@ -16,6 +16,7 @@ import { EmptyStatePrompt } from "@/components/empty-state-prompt";
 import { textareaSize } from "@/lib/textarea-size";
 import { pickImageFiles } from "@/lib/image-files";
 import { referenceConstraint, validateReferenceCount } from "@/lib/reference-images";
+import { unfinishedTaskIds } from "@/lib/generation-stop";
 
 type PublicConfig = AppConfig & { providers: Array<AppConfig["providers"][number] & { hasApiKey?: boolean }> };
 type ModelChoice = { providerId: string; providerName: string; model: ModelConfig };
@@ -58,6 +59,7 @@ export function AppShell() {
   const conversationRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const dragDepthRef = useRef(0);
+  const generationControllerRef = useRef<AbortController | null>(null);
 
   const choices = useMemo<ModelChoice[]>(() => config.providers.flatMap((provider) =>
     provider.models.map((model) => ({
@@ -71,6 +73,8 @@ export function AppShell() {
       selected.model.maxReferenceImages)
     : null;
   const attachmentLimit = videoConstraint?.max ?? selected?.model.maxReferenceImages ?? 2;
+  const processingMessage = active?.messages.find((message) => message.status === "processing");
+  const isGenerating = busy || Boolean(processingMessage);
 
   const load = useCallback(async () => {
     const [nextConfig, nextConversations] = await Promise.all([
@@ -201,7 +205,7 @@ export function AppShell() {
   };
 
   const send = async () => {
-    if (busy || !selected || (!draft.trim() && !attachments.length)) return;
+    if (isGenerating || !selected || (!draft.trim() && !attachments.length)) return;
     const currentVideoOptions = active?.videoOptions || videoDefaults;
     if (selected.model.type === "video") {
       try {
@@ -215,6 +219,8 @@ export function AppShell() {
     }
     setBusy(true);
     setError("");
+    const controller = new AbortController();
+    generationControllerRef.current = controller;
     let pendingMessageId: string | undefined;
     try {
       let conversation = active || freshConversation(selected);
@@ -256,6 +262,7 @@ export function AppShell() {
       }
       const result = await request<{ conversation: Conversation }>("/api/generate", {
         method: "POST", headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           conversationId: conversation.id, providerId: selected.providerId,
           modelId: selected.model.id, prompt, attachments: usedAttachments,
@@ -263,8 +270,10 @@ export function AppShell() {
           videoOptions: conversation.videoOptions || videoDefaults,
         }),
       });
+      if (controller.signal.aborted) return;
       setConversations((items) => [result.conversation, ...items.filter((item) => item.id !== result.conversation.id)]);
     } catch (cause) {
+      if (controller.signal.aborted || (cause as Error).name === "AbortError") return;
       const message = (cause as Error).message;
       setError(message);
       if (pendingMessageId) {
@@ -275,7 +284,75 @@ export function AppShell() {
         })));
       }
     }
-    finally { setBusy(false); }
+    finally {
+      if (generationControllerRef.current === controller) generationControllerRef.current = null;
+      setBusy(false);
+    }
+  };
+
+  const stop = async () => {
+    generationControllerRef.current?.abort();
+    generationControllerRef.current = null;
+    setBusy(false);
+    setError("");
+    if (!active) return;
+
+    const pending = active.messages.find((message) => message.status === "processing");
+    const taskIds = pending ? unfinishedTaskIds(pending) : [];
+    if (taskIds.length) {
+      let stoppedConversation = active;
+      for (const taskId of taskIds) {
+        try {
+          const result = await request<{ conversation: Conversation }>(
+            `/api/tasks/${taskId}?conversationId=${active.id}`,
+            { method: "DELETE" },
+          );
+          stoppedConversation = result.conversation;
+        } catch {
+          stoppedConversation = {
+            ...stoppedConversation,
+            updatedAt: new Date().toISOString(),
+            messages: stoppedConversation.messages.map((message) =>
+              message.id === pending?.id ? {
+                ...message,
+                status: "stopped",
+                error: "已停止等待，云端任务可能仍在生成",
+              } : message),
+          };
+        }
+      }
+      setConversations((items) => [
+        stoppedConversation,
+        ...items.filter((item) => item.id !== stoppedConversation.id),
+      ]);
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const stoppedConversation: Conversation = {
+      ...active,
+      updatedAt: now,
+      messages: pending
+        ? active.messages.map((message) => message.id === pending.id
+          ? { ...message, status: "stopped" as const, error: "已停止生成" }
+          : message)
+        : [...active.messages, {
+          id: createClientId(), role: "assistant", content: "",
+          createdAt: now, status: "stopped", error: "已停止生成",
+        }],
+    };
+    setConversations((items) => [
+      stoppedConversation,
+      ...items.filter((item) => item.id !== stoppedConversation.id),
+    ]);
+    try {
+      await request<Conversation>(`/api/conversations/${stoppedConversation.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(stoppedConversation),
+      });
+    } catch (cause) {
+      setError((cause as Error).message);
+    }
   };
 
   useEffect(() => {
@@ -451,9 +528,13 @@ export function AppShell() {
                   ? `${attachments.length} 张参考图`
                   : attachments.length === 2 ? "首帧 · 尾帧" : "首帧"
                 : attachments.length ? `${attachments.length} 张参考图` : ""}</span>
-              <button className="send-button" onClick={send}
-                disabled={busy || !selected || (!draft.trim() && !attachments.length)} aria-label="发送">
-                {busy ? <span className="spinner" /> : <ArrowUp size={17} strokeWidth={2.4} />}
+              <button className={`send-button ${isGenerating ? "is-stopping" : ""}`}
+                onClick={isGenerating ? () => void stop() : send}
+                disabled={!isGenerating && (!selected || (!draft.trim() && !attachments.length))}
+                aria-label={isGenerating ? "停止生成" : "发送"}>
+                {isGenerating
+                  ? <Square size={13} fill="currentColor" strokeWidth={2.4} />
+                  : <ArrowUp size={17} strokeWidth={2.4} />}
               </button>
             </div>
           </div>
@@ -488,6 +569,7 @@ function MessageView({
             : <div className="processing"><span className="pulse-dot" /><span>正在思考</span></div>
         )}
         {message.status === "failed" && <div className="message-error">{message.error || "生成失败"}</div>}
+        {message.status === "stopped" && <div className="message-stopped">{message.error || "已停止生成"}</div>}
         {message.media?.map((media) => media.kind === "video" ? (
           <video key={media.path} controls src={`/api/media/${media.path}`} />
         ) : (

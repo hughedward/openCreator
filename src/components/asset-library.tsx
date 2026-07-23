@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, Image as ImageIcon, Images, Video } from "lucide-react";
+import { ArrowLeft, Download, Image as ImageIcon, Images, Trash2, Video } from "lucide-react";
 import type { Asset } from "@/lib/asset-store";
+import { AssetMenu } from "@/components/asset-menu";
 
-type Filter = "all" | Asset["kind"];
+type Filter = "all" | Asset["kind"] | "trash";
 
 function formatSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -16,6 +17,12 @@ export function AssetLibrary() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [error, setError] = useState("");
+  const loadAssets = async () => {
+    const response = await fetch("/api/assets");
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "无法读取资产");
+    setAssets(data);
+  };
   useEffect(() => {
     fetch("/api/assets").then(async (response) => {
       const data = await response.json();
@@ -23,9 +30,29 @@ export function AssetLibrary() {
       setAssets(data);
     }).catch((cause) => setError(cause.message));
   }, []);
-  const visible = useMemo(() =>
-    filter === "all" ? assets : assets.filter((asset) => asset.kind === filter),
+  const visible = useMemo(() => filter === "trash"
+    ? assets.filter((asset) => asset.trashed)
+    : assets.filter((asset) => !asset.trashed && (filter === "all" || asset.kind === filter)),
   [assets, filter]);
+  const activeAssets = assets.filter((asset) => !asset.trashed);
+  const mutate = async (asset: Asset, action: "trash" | "restore" | "delete") => {
+    setError("");
+    try {
+      const response = await fetch(
+        action === "delete" ? `/api/assets?path=${encodeURIComponent(asset.path)}` : "/api/assets",
+        action === "delete" ? { method: "DELETE" } : {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, path: asset.path }),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "资产操作失败");
+      await loadAssets();
+    } catch (cause) {
+      setError((cause as Error).message);
+    }
+  };
 
   return <main className="utility-page">
     <header className="utility-topbar">
@@ -43,11 +70,14 @@ export function AssetLibrary() {
           ["all", "全部", Images],
           ["image", "图片", ImageIcon],
           ["video", "视频", Video],
+          ["trash", "回收站", Trash2],
         ] as const).map(([value, label, Icon]) =>
           <button key={value} className={filter === value ? "active" : ""}
             onClick={() => setFilter(value)}>
             <Icon size={14} /> {label}
-            <span>{value === "all" ? assets.length : assets.filter((asset) => asset.kind === value).length}</span>
+            <span>{value === "all" ? activeAssets.length :
+              value === "trash" ? assets.filter((asset) => asset.trashed).length :
+                activeAssets.filter((asset) => asset.kind === value).length}</span>
           </button>)}
       </div>
       {error && <div className="settings-error">{error}</div>}
@@ -71,6 +101,10 @@ export function AssetLibrary() {
             </div>
             <a className="asset-download" href={`/api/media/${asset.path}`} download={asset.name}
               aria-label={`下载 ${asset.name}`}><Download size={15} /></a>
+            <AssetMenu name={asset.name} trashed={Boolean(asset.trashed)}
+              onTrash={() => void mutate(asset, "trash")}
+              onRestore={() => void mutate(asset, "restore")}
+              onPermanentDelete={() => void mutate(asset, "delete")} />
           </div>
           {asset.conversationId
             ? <Link className="asset-source" href={`/?conversation=${asset.conversationId}`}>

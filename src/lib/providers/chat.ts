@@ -20,7 +20,9 @@ export function toChatMessages(messages: Message[]) {
   });
 }
 
-export async function chat(provider: ProviderConfig, model: ModelConfig, messages: Message[]) {
+export async function chat(
+  provider: ProviderConfig, model: ModelConfig, messages: Message[], signal?: AbortSignal,
+) {
   const hydrated = await Promise.all(messages.map(async (message) => ({
     ...message,
     attachments: await Promise.all((message.attachments || []).map(async (attachment) => ({
@@ -29,6 +31,7 @@ export async function chat(provider: ProviderConfig, model: ModelConfig, message
   })));
   const data = await upstream(apiUrl(provider.baseUrl, "chat/completions", provider.apiType), provider, {
     method: "POST",
+    signal,
     body: JSON.stringify({ model: model.modelId, messages: toChatMessages(hydrated) }),
   });
   return data.choices?.[0]?.message?.content || "";

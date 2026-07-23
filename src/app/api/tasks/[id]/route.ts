@@ -3,7 +3,8 @@ import { getConversation, saveConversation } from "@/lib/conversation-store";
 import { failure, ok } from "@/lib/http";
 import { downloadMedia } from "@/lib/media-store";
 import { resolveModel } from "@/lib/providers/common";
-import { getVideoTask } from "@/lib/providers/video";
+import { cancelVideoTask, getVideoTask } from "@/lib/providers/video";
+import { stopMessageText, unfinishedTaskIds } from "@/lib/generation-stop";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -37,5 +38,33 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     }
     await saveConversation(conversation);
     return ok({ status, conversation });
+  } catch (error) { return failure(error); }
+}
+
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const taskId = (await context.params).id;
+    const query = new URL(request.url).searchParams;
+    const conversation = await getConversation(query.get("conversationId") || "");
+    if (!conversation) throw new Error("会话不存在");
+    const message = conversation.messages.find((item) =>
+      ["processing", "stopped"].includes(item.status) && unfinishedTaskIds(item).includes(taskId));
+    if (!message) throw new Error("待停止的视频任务不存在");
+    const { provider } = resolveModel(
+      await getConfig(), conversation.providerId || "", conversation.modelId || "",
+    );
+
+    let cancelError = "";
+    try {
+      await cancelVideoTask(provider, taskId);
+      message.failedTaskIds = [...new Set([...(message.failedTaskIds || []), taskId])];
+    } catch (cause) {
+      cancelError = (cause as Error).message;
+    }
+    message.status = "stopped";
+    message.error = stopMessageText(message.error, cancelError);
+    conversation.updatedAt = new Date().toISOString();
+    await saveConversation(conversation);
+    return ok({ conversation, cancelled: !cancelError, error: cancelError || undefined });
   } catch (error) { return failure(error); }
 }
