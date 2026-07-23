@@ -14,6 +14,7 @@ export const providerConfigSchema = z.object({
   name: z.string().min(1),
   baseUrl: z.url(),
   apiKey: z.string().min(1),
+  apiType: z.enum(["ark", "openai"]).optional(),
   models: z.array(modelConfigSchema).superRefine((models, ctx) => {
     const ids = new Set<string>();
     models.forEach((model, index) => {
@@ -23,7 +24,11 @@ export const providerConfigSchema = z.object({
       ids.add(model.id);
     });
   }),
-});
+}).transform((provider) => ({
+  ...provider,
+  apiType: provider.apiType ||
+    (/deepseek\.com|\/v1\/?$/i.test(provider.baseUrl) ? "openai" as const : "ark" as const),
+}));
 
 export const appConfigSchema = z.object({
   providers: z.array(providerConfigSchema),

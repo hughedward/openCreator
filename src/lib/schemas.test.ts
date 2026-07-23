@@ -18,6 +18,19 @@ describe("appConfigSchema", () => {
 
     expect(result.providers[0].models[0].maxReferenceImages).toBe(2);
     expect(result.providers[0].models[0].maxVideoDuration).toBe(10);
+    expect(result.providers[0].apiType).toBe("ark");
+  });
+
+  it("infers OpenAI compatibility for an existing DeepSeek provider", () => {
+    const result = appConfigSchema.parse({
+      providers: [{
+        id: "deepseek", name: "DeepSeek", baseUrl: "https://api.deepseek.com",
+        apiKey: "secret", models: [{
+          id: "chat", name: "DeepSeek", modelId: "deepseek-v4-pro", type: "chat",
+        }],
+      }],
+    });
+    expect(result.providers[0].apiType).toBe("openai");
   });
 
   it("rejects duplicate model identifiers in one provider", () => {

@@ -34,12 +34,14 @@ export async function createVideoTask(
 ) {
   const images = await Promise.all(attachments.map(attachmentDataUrl));
   const content = buildVideoContent(prompt, images, options);
-  const data = await upstream(apiUrl(provider.baseUrl, "contents/generations/tasks"), provider, {
+  const data = await upstream(apiUrl(provider.baseUrl, "contents/generations/tasks", provider.apiType), provider, {
     method: "POST", body: JSON.stringify({ model: model.modelId, content }),
   });
   return data.id as string;
 }
 
 export async function getVideoTask(provider: ProviderConfig, taskId: string) {
-  return upstream(apiUrl(provider.baseUrl, `contents/generations/tasks/${taskId}`), provider);
+  return upstream(apiUrl(
+    provider.baseUrl, `contents/generations/tasks/${taskId}`, provider.apiType,
+  ), provider);
 }

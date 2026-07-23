@@ -410,11 +410,13 @@ a { color: inherit; text-decoration: none; }
 .form-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 22px 16px; }
 .form-grid label, .model-row { min-width: 0; }
 .form-grid label > span { display: block; margin-bottom: 8px; color: var(--muted); font-size: 10px; font-weight: 600; }
-.form-grid input, .model-row input, .model-row select {
+.form-grid input, .form-grid select, .model-row input, .model-row select {
   width: 100%; height: 40px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px;
   outline: 0; background: transparent; font-size: 12px; transition: border-color .15s;
 }
-.form-grid input:focus, .model-row input:focus, .model-row select:focus { border-color: oklch(63% 0.01 82); }
+.form-grid input:focus, .form-grid select:focus, .model-row input:focus, .model-row select:focus {
+  border-color: oklch(63% 0.01 82);
+}
 .form-grid .wide { grid-column: span 2; }
 .secret-input { position: relative; }
 .secret-input input { padding-right: 40px; }

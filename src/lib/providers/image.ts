@@ -43,7 +43,7 @@ export async function generateImage(
   options: ImageOptions,
 ) {
   const image = await Promise.all(attachments.map(attachmentDataUrl));
-  const data = await upstream(apiUrl(provider.baseUrl, "images/generations"), provider, {
+  const data = await upstream(apiUrl(provider.baseUrl, "images/generations", provider.apiType), provider, {
     method: "POST",
     body: JSON.stringify(buildImageRequest(model.modelId, prompt, image, options)),
   });

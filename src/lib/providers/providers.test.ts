@@ -17,6 +17,13 @@ describe("provider helpers", () => {
       .toBe("http://localhost:11434/v1/chat/completions");
   });
 
+  it("uses an OpenAI-compatible provider root without adding Ark paths", () => {
+    expect(apiUrl("https://api.deepseek.com", "chat/completions", "openai"))
+      .toBe("https://api.deepseek.com/chat/completions");
+    expect(apiUrl("https://api.deepseek.com/chat/completions", "models", "openai"))
+      .toBe("https://api.deepseek.com/models");
+  });
+
   it("uses the provider origin ping endpoint for a non-billable connection test", () => {
     expect(healthUrl("https://ark.cn-beijing.volces.com/api/v3"))
       .toBe("https://ark.cn-beijing.volces.com/ping");

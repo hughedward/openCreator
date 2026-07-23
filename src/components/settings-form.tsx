@@ -16,12 +16,13 @@ const emptyModel = (): ModelConfig => ({
 });
 const emptyProvider = (): ProviderConfig => ({
   id: id(), name: "", baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
-  apiKey: "", models: [emptyModel()],
+  apiKey: "", apiType: "ark", models: [emptyModel()],
 });
 
 export function SettingsForm() {
   const [config, setConfig] = useState<AppConfig>({ providers: [] });
   const [visible, setVisible] = useState<Record<string, boolean>>({});
+  const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [tests, setTests] = useState<Record<string, { state: "loading" | "success" | "error"; message: string }>>({});
@@ -49,8 +50,38 @@ export function SettingsForm() {
     });
     const data = await response.json();
     if (!response.ok) return setError(data.error || "保存失败");
-    setConfig(data); setStatus("已保存");
+    setConfig(data); setVisible({}); setRevealed({}); setStatus("已保存");
     window.setTimeout(() => setStatus(""), 2000);
+  };
+  const toggleSecret = async (providerIndex: number) => {
+    const provider = config.providers[providerIndex];
+    if (visible[provider.id]) {
+      setVisible((current) => ({ ...current, [provider.id]: false }));
+      if (revealed[provider.id]) {
+        updateProvider(providerIndex, { apiKey: "••••••••" });
+        setRevealed((current) => ({ ...current, [provider.id]: false }));
+      }
+      return;
+    }
+    if (provider.apiKey !== "••••••••") {
+      setVisible((current) => ({ ...current, [provider.id]: true }));
+      return;
+    }
+    try {
+      const response = await fetch("/api/config/secret", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ providerId: provider.id }),
+        cache: "no-store",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "无法读取密钥");
+      updateProvider(providerIndex, { apiKey: data.apiKey });
+      setRevealed((current) => ({ ...current, [provider.id]: true }));
+      setVisible((current) => ({ ...current, [provider.id]: true }));
+    } catch (cause) {
+      setError((cause as Error).message);
+    }
   };
   const testModel = async (provider: ProviderConfig, model: ModelConfig) => {
     setTests((current) => ({ ...current, [model.id]: { state: "loading", message: "正在测试连接…" } }));
@@ -103,14 +134,28 @@ export function SettingsForm() {
                 <div className="form-grid">
                   <label><span>供应商名称</span><input value={provider.name}
                     placeholder="火山方舟" onChange={(e) => updateProvider(providerIndex, { name: e.target.value })} /></label>
+                  <label><span>接口类型</span><select value={provider.apiType}
+                    onChange={(e) => updateProvider(providerIndex, {
+                      apiType: e.target.value as ProviderConfig["apiType"],
+                    })}>
+                    <option value="ark">火山方舟</option>
+                    <option value="openai">OpenAI 兼容</option>
+                  </select></label>
                   <label className="wide"><span>Base URL</span><input value={provider.baseUrl}
-                    placeholder="https://ark.cn-beijing.volces.com/api/v3"
+                    placeholder={provider.apiType === "openai"
+                      ? "https://api.deepseek.com"
+                      : "https://ark.cn-beijing.volces.com/api/v3"}
                     onChange={(e) => updateProvider(providerIndex, { baseUrl: e.target.value })} /></label>
                   <label className="wide"><span>API Key</span><div className="secret-input">
                     <input type={visible[provider.id] ? "text" : "password"} value={provider.apiKey}
                       placeholder="输入 API Key"
-                      onChange={(e) => updateProvider(providerIndex, { apiKey: e.target.value })} />
-                    <button onClick={() => setVisible({ ...visible, [provider.id]: !visible[provider.id] })}>
+                      onChange={(e) => {
+                        updateProvider(providerIndex, { apiKey: e.target.value });
+                        setRevealed((current) => ({ ...current, [provider.id]: false }));
+                      }} />
+                    <button type="button" onClick={() => void toggleSecret(providerIndex)}
+                      aria-label={visible[provider.id] ? "隐藏 API Key" : "显示 API Key"}
+                      title={visible[provider.id] ? "隐藏 API Key" : "从本机配置中显示 API Key"}>
                       {visible[provider.id] ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div></label>

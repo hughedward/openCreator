@@ -1,7 +1,11 @@
-import type { AppConfig, ModelConfig, ProviderConfig } from "../types";
+import type { AppConfig, ModelConfig, ProviderApiType, ProviderConfig } from "../types";
 
-export function apiUrl(baseUrl: string, path: string) {
+export function apiUrl(baseUrl: string, path: string, apiType: ProviderApiType = "ark") {
   let base = baseUrl.replace(/\/+$/, "");
+  if (apiType === "openai") {
+    base = base.replace(/\/(?:chat\/completions|models)$/i, "");
+    return `${base}/${path.replace(/^\/+/, "")}`;
+  }
   if (!/\/(?:api\/)?v\d+$/.test(base)) base += "/api/v3";
   return `${base}/${path.replace(/^\/+/, "")}`;
 }

@@ -27,7 +27,7 @@ export async function chat(provider: ProviderConfig, model: ModelConfig, message
       ...attachment, dataUrl: await attachmentDataUrl(attachment),
     }))),
   })));
-  const data = await upstream(apiUrl(provider.baseUrl, "chat/completions"), provider, {
+  const data = await upstream(apiUrl(provider.baseUrl, "chat/completions", provider.apiType), provider, {
     method: "POST",
     body: JSON.stringify({ model: model.modelId, messages: toChatMessages(hydrated) }),
   });
