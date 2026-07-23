@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUp, Check, ChevronDown, ImagePlus, Menu, MoreHorizontal,
@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import type { AppConfig, Conversation, MediaRef, Message, ModelConfig, VideoOptions } from "@/lib/types";
 import { createClientId } from "@/lib/client-id";
+import { GenerationStatus } from "@/components/generation-status";
+import { textareaSize } from "@/lib/textarea-size";
 
 type PublicConfig = AppConfig & { providers: Array<AppConfig["providers"][number] & { hasApiKey?: boolean }> };
 type ModelChoice = { providerId: string; providerName: string; model: ModelConfig };
@@ -44,6 +46,7 @@ export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [videoOptions, setVideoOptions] = useState(videoDefaults);
   const fileRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const choices = useMemo<ModelChoice[]>(() => config.providers.flatMap((provider) =>
@@ -74,6 +77,17 @@ export function AppShell() {
     return () => clearTimeout(timer);
   }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [active?.messages.length]);
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "0px";
+    const styles = window.getComputedStyle(textarea);
+    const maxHeight = Number.parseFloat(styles.maxHeight) || 156;
+    const minHeight = Number.parseFloat(styles.minHeight) || 42;
+    const size = textareaSize(textarea.scrollHeight, minHeight, maxHeight);
+    textarea.style.height = `${size.height}px`;
+    textarea.style.overflowY = size.scrolls ? "auto" : "hidden";
+  }, [draft]);
 
   const persist = async (conversation: Conversation) => {
     const saved = await request<Conversation>(`/api/conversations/${conversation.id}`, {
@@ -133,6 +147,7 @@ export function AppShell() {
     if (busy || !selected || (!draft.trim() && !attachments.length)) return;
     setBusy(true);
     setError("");
+    let pendingMessageId: string | undefined;
     try {
       let conversation = active || freshConversation(selected);
       const now = new Date().toISOString();
@@ -153,6 +168,24 @@ export function AppShell() {
       const usedAttachments = attachments;
       setDraft("");
       setAttachments([]);
+      if (selected.model.type !== "chat") {
+        pendingMessageId = `pending-${createClientId()}`;
+        const pendingMessage: Message = {
+          id: pendingMessageId,
+          role: "assistant",
+          content: "",
+          createdAt: new Date().toISOString(),
+          status: "processing",
+        };
+        const optimistic = {
+          ...conversation,
+          messages: [...conversation.messages, pendingMessage],
+        };
+        setConversations((items) => [
+          optimistic,
+          ...items.filter((item) => item.id !== optimistic.id),
+        ]);
+      }
       const result = await request<{ conversation: Conversation }>("/api/generate", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -161,7 +194,17 @@ export function AppShell() {
         }),
       });
       setConversations((items) => [result.conversation, ...items.filter((item) => item.id !== result.conversation.id)]);
-    } catch (cause) { setError((cause as Error).message); }
+    } catch (cause) {
+      const message = (cause as Error).message;
+      setError(message);
+      if (pendingMessageId) {
+        setConversations((items) => items.map((conversation) => ({
+          ...conversation,
+          messages: conversation.messages.map((item) =>
+            item.id === pendingMessageId ? { ...item, status: "failed", error: message } : item),
+        })));
+      }
+    }
     finally { setBusy(false); }
   };
 
@@ -242,7 +285,10 @@ export function AppShell() {
             </div>
           ) : (
             <div className="message-list">
-              {active.messages.map((message) => <MessageView key={message.id} message={message} />)}
+              {active.messages.map((message) => (
+                <MessageView key={message.id} message={message}
+                  processingType={message.taskId ? "video" : selected?.model.type} />
+              ))}
               <div ref={bottomRef} />
             </div>
           )}
@@ -265,7 +311,7 @@ export function AppShell() {
           )}
           {error && <div className="inline-error">{error}<button onClick={() => setError("")}><X size={13} /></button></div>}
           <div className="composer">
-            <textarea value={draft} onChange={(event) => setDraft(event.target.value)}
+            <textarea ref={textareaRef} value={draft} onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); }
               }}
@@ -294,7 +340,13 @@ export function AppShell() {
   );
 }
 
-function MessageView({ message }: { message: Message }) {
+function MessageView({
+  message,
+  processingType = "chat",
+}: {
+  message: Message;
+  processingType?: ModelConfig["type"];
+}) {
   return (
     <article className={`message ${message.role}`}>
       <div className="message-meta">{message.role === "user" ? "你" : "Mote"}</div>
@@ -307,7 +359,9 @@ function MessageView({ message }: { message: Message }) {
         </div> : null}
         {message.content && <p>{message.content}</p>}
         {message.status === "processing" && (
-          <div className="processing"><span className="pulse-dot" /><span>正在生成视频</span><small>可以离开此页面，任务会保留</small></div>
+          processingType === "image" || processingType === "video"
+            ? <GenerationStatus type={processingType} />
+            : <div className="processing"><span className="pulse-dot" /><span>正在思考</span></div>
         )}
         {message.status === "failed" && <div className="message-error">{message.error || "生成失败"}</div>}
         {message.media?.map((media) => media.kind === "video" ? (
