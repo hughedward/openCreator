@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { apiUrl } from "./common";
+import { apiUrl, healthUrl } from "./common";
 import { toChatMessages } from "./chat";
 import { videoPrompt } from "./video";
 
@@ -14,6 +14,11 @@ describe("provider helpers", () => {
   it("preserves an OpenAI-compatible v1 base URL", () => {
     expect(apiUrl("http://localhost:11434/v1", "chat/completions"))
       .toBe("http://localhost:11434/v1/chat/completions");
+  });
+
+  it("uses the provider origin ping endpoint for a non-billable connection test", () => {
+    expect(healthUrl("https://ark.cn-beijing.volces.com/api/v3"))
+      .toBe("https://ark.cn-beijing.volces.com/ping");
   });
 
   it("converts local image attachments to multimodal chat content", () => {

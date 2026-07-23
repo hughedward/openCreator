@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Eye, EyeOff, Plus, Save, Trash2, X } from "lucide-react";
+import {
+  ArrowLeft, Check, CircleCheck, CircleX, Eye, EyeOff,
+  LoaderCircle, Plus, Save, TestTube2, Trash2, X,
+} from "lucide-react";
 import type { AppConfig, ModelConfig, ProviderConfig } from "@/lib/types";
 import { createClientId } from "@/lib/client-id";
 
@@ -18,6 +21,7 @@ export function SettingsForm() {
   const [visible, setVisible] = useState<Record<string, boolean>>({});
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [tests, setTests] = useState<Record<string, { state: "loading" | "success" | "error"; message: string }>>({});
 
   useEffect(() => {
     fetch("/api/config").then((response) => response.json()).then(setConfig)
@@ -44,6 +48,24 @@ export function SettingsForm() {
     if (!response.ok) return setError(data.error || "保存失败");
     setConfig(data); setStatus("已保存");
     window.setTimeout(() => setStatus(""), 2000);
+  };
+  const testModel = async (provider: ProviderConfig, model: ModelConfig) => {
+    setTests((current) => ({ ...current, [model.id]: { state: "loading", message: "正在测试连接…" } }));
+    try {
+      const response = await fetch("/api/config/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, modelId: model.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "连接测试失败");
+      setTests((current) => ({ ...current, [model.id]: { state: "success", message: data.message } }));
+    } catch (cause) {
+      setTests((current) => ({
+        ...current,
+        [model.id]: { state: "error", message: (cause as Error).message },
+      }));
+    }
   };
 
   return (
@@ -93,9 +115,12 @@ export function SettingsForm() {
 
                 <div className="models-head"><h3>模型</h3><span>{provider.models.length} 个</span></div>
                 <div className="model-table">
-                  <div className="model-row header"><span>显示名称</span><span>Model ID</span><span>类型</span><span /></div>
+                  <div className="model-row header">
+                    <span>显示名称</span><span>Model ID</span><span>类型</span><span>连接</span><span />
+                  </div>
                   {provider.models.map((model, modelIndex) => (
-                    <div className="model-row" key={model.id}>
+                    <div className="model-entry" key={model.id}>
+                      <div className="model-row">
                       <input value={model.name} placeholder="Seedream 4.5"
                         onChange={(e) => updateModel(providerIndex, modelIndex, { name: e.target.value })} />
                       <input value={model.modelId} placeholder="doubao-seedream-4-5-251128"
@@ -104,9 +129,25 @@ export function SettingsForm() {
                         onChange={(e) => updateModel(providerIndex, modelIndex, { type: e.target.value as ModelConfig["type"] })}>
                         <option value="chat">对话</option><option value="image">图像</option><option value="video">视频</option>
                       </select>
+                      <button className={`test-model ${tests[model.id]?.state || ""}`}
+                        disabled={tests[model.id]?.state === "loading"}
+                        onClick={() => testModel(provider, model)}
+                        aria-label={`测试 ${model.name || "模型"} 连接`}>
+                        {tests[model.id]?.state === "loading" ? <LoaderCircle className="spin" size={14} /> :
+                          tests[model.id]?.state === "success" ? <CircleCheck size={14} /> :
+                          tests[model.id]?.state === "error" ? <CircleX size={14} /> :
+                          <TestTube2 size={14} />}
+                        测试
+                      </button>
                       <button aria-label="删除模型" onClick={() => updateProvider(providerIndex, {
                         models: provider.models.filter((_, i) => i !== modelIndex),
                       })}><Trash2 size={15} /></button>
+                      </div>
+                      {tests[model.id] && (
+                        <div className={`model-test-result ${tests[model.id].state}`}>
+                          {tests[model.id].message}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

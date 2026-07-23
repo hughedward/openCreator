@@ -6,6 +6,10 @@ export function apiUrl(baseUrl: string, path: string) {
   return `${base}/${path.replace(/^\/+/, "")}`;
 }
 
+export function healthUrl(baseUrl: string) {
+  return new URL("/ping", baseUrl).toString();
+}
+
 export function resolveModel(config: AppConfig, providerId: string, modelId: string): {
   provider: ProviderConfig; model: ModelConfig;
 } {
