@@ -4,7 +4,7 @@ import type { ModelConfig, ProviderConfig } from "./types";
 
 const model: ModelConfig = {
   id: "chat", name: "DeepSeek", modelId: "deepseek-v4-pro", type: "chat",
-  maxReferenceImages: 2, maxVideoDuration: 10,
+  maxReferenceImages: 2, maxVideoDuration: 10, supportsImageInput: false,
 };
 const provider: ProviderConfig = {
   id: "deepseek", name: "DeepSeek", baseUrl: "https://api.deepseek.com",

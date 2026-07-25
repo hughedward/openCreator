@@ -31,7 +31,7 @@ describe("provider helpers", () => {
       .toBe("https://ark.cn-beijing.volces.com/ping");
   });
 
-  it("converts local image attachments to multimodal chat content", () => {
+  it("embeds image attachments for a vision-capable chat model", () => {
     const messages = toChatMessages([{
       id: "m1",
       role: "user",
@@ -45,11 +45,45 @@ describe("provider helpers", () => {
         mimeType: "image/png",
         dataUrl: "data:image/png;base64,AAAA",
       }],
-    }]);
+    }], {
+      id: "chat", name: "Chat", modelId: "chat", type: "chat",
+      maxReferenceImages: 2, maxVideoDuration: 10, supportsImageInput: true,
+    });
     expect(messages[0].content).toEqual([
       { type: "text", text: "这是什么？" },
       { type: "image_url", image_url: { url: "data:image/png;base64,AAAA" } },
     ]);
+  });
+
+  it("drops historical image attachments for a text-only chat model", () => {
+    // 回归:曾在图像/视频模型下上传的参考图,不应被串进纯文本对话(DeepSeek 等)的请求。
+    const messages = toChatMessages([{
+      id: "m1",
+      role: "user",
+      content: "以这张图里的小人为主角",
+      createdAt: "2026-07-23T00:00:00.000Z",
+      status: "complete",
+      attachments: [{
+        kind: "image",
+        name: "ref.png",
+        path: "uploads/ref.png",
+        mimeType: "image/png",
+        dataUrl: "data:image/png;base64,BBCC",
+      }],
+    }, {
+      id: "m2",
+      role: "user",
+      content: "nihao",
+      createdAt: "2026-07-23T00:00:01.000Z",
+      status: "complete",
+    }], {
+      id: "deepseek", name: "DeepSeek", modelId: "deepseek-v4-pro", type: "chat",
+      maxReferenceImages: 2, maxVideoDuration: 10, supportsImageInput: false,
+    });
+    // 两条用户消息都退化为纯文本,历史参考图不再以 image_url 发出。
+    expect(messages.every((message) => typeof message.content === "string")).toBe(true);
+    expect(messages[0].content).toBe("以这张图里的小人为主角");
+    expect(messages[1].content).toBe("nihao");
   });
 
   it("encodes selected video controls into the provider prompt", () => {
@@ -153,11 +187,11 @@ describe("provider helpers", () => {
 
     await chat(provider, {
       id: "chat", name: "Chat", modelId: "chat", type: "chat",
-      maxReferenceImages: 2, maxVideoDuration: 10,
+      maxReferenceImages: 2, maxVideoDuration: 10, supportsImageInput: false,
     }, [], controller.signal);
     await generateImage(provider, {
       id: "image", name: "Image", modelId: "image", type: "image",
-      maxReferenceImages: 2, maxVideoDuration: 10,
+      maxReferenceImages: 2, maxVideoDuration: 10, supportsImageInput: true,
     }, "test", [], { ratio: "1:1", resolution: "2K", count: 1 }, controller.signal);
 
     expect(fetchMock.mock.calls[0][1]).toEqual(expect.objectContaining({ signal: controller.signal }));

@@ -515,6 +515,8 @@ a { color: inherit; text-decoration: none; }
 .model-test-result { margin: -2px 0 10px; padding-left: 2px; color: var(--muted); font-size: 10px; }
 .model-test-result.success { color: oklch(45% .09 150); }
 .model-test-result.error { color: var(--danger); }
+.model-flag { display: flex; align-items: center; gap: 6px; margin: -2px 0 10px; padding-left: 2px; color: var(--muted); font-size: 10px; }
+.model-flag input { margin: 0; }
 .spin { animation: spin .8s linear infinite; }
 .add-model { display: flex; align-items: center; gap: 6px; margin-top: 12px; padding: 5px 0; background: transparent; color: var(--muted); font-size: 11px; }
 .add-model:hover { color: var(--ink); }

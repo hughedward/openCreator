@@ -12,7 +12,7 @@ import { createClientId } from "@/lib/client-id";
 const id = () => createClientId();
 const emptyModel = (): ModelConfig => ({
   id: id(), name: "", modelId: "", type: "chat",
-  maxReferenceImages: 2, maxVideoDuration: 10,
+  maxReferenceImages: 2, maxVideoDuration: 10, supportsImageInput: false,
 });
 const emptyProvider = (): ProviderConfig => ({
   id: id(), name: "", baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
@@ -216,15 +216,26 @@ export function SettingsForm() {
                       <input value={model.modelId} placeholder="doubao-seedream-4-5-251128"
                         onChange={(e) => updateModel(providerIndex, modelIndex, { modelId: e.target.value })} />
                       <select value={model.type}
-                        onChange={(e) => updateModel(providerIndex, modelIndex, { type: e.target.value as ModelConfig["type"] })}>
+                        onChange={(e) => {
+                          const type = e.target.value as ModelConfig["type"];
+                          updateModel(providerIndex, modelIndex, {
+                            type,
+                            // 切换类型时同步默认能力位:对话模型默认不支持图,图像/视频始终支持。
+                            supportsImageInput: type !== "chat",
+                          });
+                        }}>
                         <option value="chat">对话</option><option value="image">图像</option><option value="video">视频</option>
                       </select>
-                      <input className="reference-limit" type="number" min={0} max={8}
-                        value={model.maxReferenceImages}
-                        aria-label={`${model.name || "模型"}最大参考图数量`}
-                        onChange={(e) => updateModel(providerIndex, modelIndex, {
-                          maxReferenceImages: Math.min(8, Math.max(0, Number(e.target.value) || 0)),
-                        })} />
+                      {model.type === "chat" && !model.supportsImageInput ? (
+                        <span className="not-applicable">—</span>
+                      ) : (
+                        <input className="reference-limit" type="number" min={0} max={8}
+                          value={model.maxReferenceImages}
+                          aria-label={`${model.name || "模型"}最大参考图数量`}
+                          onChange={(e) => updateModel(providerIndex, modelIndex, {
+                            maxReferenceImages: Math.min(8, Math.max(0, Number(e.target.value) || 0)),
+                          })} />
+                      )}
                       {model.type === "video" ? <input className="duration-limit" type="number" min={3} max={60}
                         value={model.maxVideoDuration}
                         aria-label={`${model.name || "模型"}最大视频时长`}
@@ -245,6 +256,16 @@ export function SettingsForm() {
                         models: provider.models.filter((_, i) => i !== modelIndex),
                       })}><Trash2 size={15} /></button>
                       </div>
+                      {model.type === "chat" && (
+                        <label className="model-flag">
+                          <input type="checkbox" checked={model.supportsImageInput}
+                            aria-label={`${model.name || "模型"}支持图片输入`}
+                            onChange={(e) => updateModel(providerIndex, modelIndex, {
+                              supportsImageInput: e.target.checked,
+                            })} />
+                          支持图片输入（多模态视觉模型，如 GPT-4o / Claude / GLM-4V）
+                        </label>
+                      )}
                       {tests[model.id] && (
                         <div className={`model-test-result ${tests[model.id].state}`}>
                           {tests[model.id].message}

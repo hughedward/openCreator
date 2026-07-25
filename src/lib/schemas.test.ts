@@ -19,6 +19,25 @@ describe("appConfigSchema", () => {
     expect(result.providers[0].models[0].maxReferenceImages).toBe(2);
     expect(result.providers[0].models[0].maxVideoDuration).toBe(10);
     expect(result.providers[0].apiType).toBe("ark");
+    expect(result.providers[0].models[0].supportsImageInput).toBe(false); // 对话模型默认纯文本
+    expect(result.providers[0].models[1].supportsImageInput).toBe(true); // 图像模型天然支持图片
+  });
+
+  it("preserves an explicit vision flag on a chat model", () => {
+    const result = appConfigSchema.parse({
+      providers: [{
+        id: "ark",
+        name: "火山方舟",
+        baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
+        apiKey: "secret",
+        models: [
+          { id: "vision", name: "GPT-4o", modelId: "gpt-4o", type: "chat", supportsImageInput: true },
+          { id: "video", name: "Seedance", modelId: "seedance", type: "video" },
+        ],
+      }],
+    });
+    expect(result.providers[0].models[0].supportsImageInput).toBe(true); // 显式开启的多模态对话模型
+    expect(result.providers[0].models[1].supportsImageInput).toBe(true); // 视频模型天然支持参考图
   });
 
   it("infers OpenAI compatibility for an existing DeepSeek provider", () => {

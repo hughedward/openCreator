@@ -8,6 +8,12 @@ export interface ModelConfig {
   type: ModelType;
   maxReferenceImages: number;
   maxVideoDuration: number;
+  /**
+   * 对话模型是否接受图片输入。图像/视频模型始终视为 true;
+   * 对话模型默认 false(纯文本),多模态视觉模型(如 GPT-4o / Claude / GLM-4V)需手动开启。
+   * 决定 toChatMessages 是否把附件转成 image_url,以及输入框是否允许给该模型贴图。
+   */
+  supportsImageInput: boolean;
 }
 
 export interface ProviderConfig {

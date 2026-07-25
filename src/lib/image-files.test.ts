@@ -19,7 +19,7 @@ describe("pickImageFiles", () => {
     expect(result).toEqual({ accepted: [] });
   });
 
-  it("respects remaining composer capacity", () => {
+  it("respects the per-message image limit", () => {
     const result = pickImageFiles([
       file("one.png", "image/png"),
       file("two.png", "image/png"),
@@ -32,5 +32,18 @@ describe("pickImageFiles", () => {
     const result = pickImageFiles([file("large.png", "image/png", 16 * 1024 * 1024)], 2);
     expect(result.accepted).toHaveLength(0);
     expect(result.error).toContain("15MB");
+  });
+
+  it("tells when the mode does not accept reference images at all (limit 0)", () => {
+    // 回归:文生视频模式粘贴图,不应再报写死的"最多 2 张"。
+    const result = pickImageFiles([file("ref.png", "image/png")], 0);
+    expect(result.accepted).toHaveLength(0);
+    expect(result.error).toBe("当前模式不支持参考图");
+  });
+
+  it("reports the real limit when the composer is already at capacity", () => {
+    const result = pickImageFiles([file("extra.png", "image/png")], 2, 2);
+    expect(result.accepted).toHaveLength(0);
+    expect(result.error).toBe("每条消息最多添加 2 张图片");
   });
 });

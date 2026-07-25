@@ -1,13 +1,20 @@
 import { z } from "zod";
 
-export const modelConfigSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  modelId: z.string().min(1),
-  type: z.enum(["chat", "image", "video"]),
-  maxReferenceImages: z.number().int().min(0).max(8).default(2),
-  maxVideoDuration: z.number().int().min(3).max(60).default(10),
-});
+export const modelConfigSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    modelId: z.string().min(1),
+    type: z.enum(["chat", "image", "video"]),
+    maxReferenceImages: z.number().int().min(0).max(8).default(2),
+    maxVideoDuration: z.number().int().min(3).max(60).default(10),
+    supportsImageInput: z.boolean().optional(),
+  })
+  .transform((model) => ({
+    ...model,
+    // 图像/视频模型天然接收图片;对话模型默认纯文本,多模态视觉模型需显式开启。
+    supportsImageInput: model.supportsImageInput ?? model.type !== "chat",
+  }));
 
 export const providerConfigSchema = z.object({
   id: z.string().min(1),

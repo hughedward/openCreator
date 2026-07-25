@@ -74,7 +74,10 @@ export function AppShell() {
     ? referenceConstraint(active?.videoOptions?.referenceMode || videoDefaults.referenceMode,
       selected.model.maxReferenceImages)
     : null;
-  const attachmentLimit = videoConstraint?.max ?? selected?.model.maxReferenceImages ?? 2;
+  // 对话模型仅在支持图片输入时才允许附件(并受其参考图上限约束);图像/视频模型沿用各自约束。
+  const attachmentLimit = selected?.model.type === "chat"
+    ? (selected.model.supportsImageInput ? selected.model.maxReferenceImages : 0)
+    : (videoConstraint?.max ?? selected?.model.maxReferenceImages ?? 2);
   const processingMessage = active?.messages.find((message) => message.status === "processing");
   const isGenerating = busy || Boolean(processingMessage);
 
@@ -192,7 +195,7 @@ export function AppShell() {
   };
 
   const upload = async (files: readonly File[]) => {
-    const selection = pickImageFiles(files, attachmentLimit - attachments.length);
+    const selection = pickImageFiles(files, attachmentLimit, attachments.length);
     if (selection.error) setError(selection.error);
     else setError("");
     if (!selection.accepted.length) return;
@@ -529,7 +532,11 @@ export function AppShell() {
                 }} />
               <button className="icon-button" onClick={() => fileRef.current?.click()}
                 disabled={attachmentLimit === 0}
-                title={attachmentLimit === 0 ? "文生视频模式不需要参考图" : undefined}
+                title={attachmentLimit === 0
+                  ? (selected?.model.type === "chat"
+                    ? "当前模型不支持图片输入"
+                    : "文生视频模式不需要参考图")
+                  : undefined}
                 aria-label="添加图片">
                 <ImagePlus size={18} />
               </button>
