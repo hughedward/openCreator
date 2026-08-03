@@ -80,6 +80,29 @@ npm run dev
 
 打开 [http://localhost:3000](http://localhost:3000)。
 
+### 分享给没有 Node.js 的朋友
+
+项目可以生成内置 Node.js 的便携包。对方解压后双击 **Start Mote** 即可，
+不需要安装 Node.js，也不需要使用命令行。
+
+```bash
+# 当前 Apple Silicon Mac（默认也会自动识别当前 Mac 架构）
+npm run dist:portable -- mac-arm64
+
+# Intel Mac
+npm run dist:portable -- mac-x64
+
+# Windows 64 位
+npm run dist:portable -- win-x64
+```
+
+生成的压缩包位于 `dist/`。macOS 使用 `Start Mote.command`，Windows 使用
+`Start Mote.cmd`；对应的 Stop 文件用于停止后台服务。配置、API Key、会话和生成内容
+保存在解压目录下的 `data/`、`out/` 中，因此升级或转发软件时不要把自己的 `data/`
+目录分享给别人。
+
+macOS 首次运行未签名的启动文件时，可能需要在 Finder 中右键选择 **打开**。
+
 ### 2. 配置供应商
 
 进入右下角的 **设置**，添加供应商并选择对应的接口类型：

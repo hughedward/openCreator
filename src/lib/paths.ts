@@ -1,6 +1,10 @@
 import { resolve, sep } from "node:path";
 
-export const projectRoot = process.cwd();
+// Portable builds keep user data beside the application, outside Next's
+// standalone server directory. Development keeps the existing cwd behavior.
+export const projectRoot = resolve(
+  /* turbopackIgnore: true */ process.env.MOTE_STORAGE_ROOT || process.cwd(),
+);
 export const dataDir = resolve(projectRoot, "data");
 export const conversationsDir = resolve(dataDir, "conversations");
 export const outDir = resolve(projectRoot, "out");

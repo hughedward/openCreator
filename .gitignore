@@ -37,6 +37,7 @@ next-env.d.ts
 .stylelintcache
 .turbo/
 .cache/
+.portable-cache/
 
 # Environment files and secrets
 .env
@@ -76,4 +77,3 @@ storage/
 Thumbs.db
 desktop.ini
 .impeccable.md 
-

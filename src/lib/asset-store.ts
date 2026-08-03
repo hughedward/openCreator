@@ -123,7 +123,7 @@ async function scanAssetFolder(
 
 export async function indexAssets(conversations: Conversation[]): Promise<Asset[]> {
   const assets: Asset[] = [];
-  const root = path.join(/* turbopackIgnore: true */ process.cwd(), "out");
+  const root = outDir;
   await scanAssetFolder(assets, root, "images");
   await scanAssetFolder(assets, root, "videos");
   await scanAssetFolder(assets, root, "images", true);
