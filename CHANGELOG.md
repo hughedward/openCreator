@@ -6,6 +6,7 @@
 
 ### 修复
 - **Windows 便携包构建失败**：修复 `spawnSync npm.cmd EINVAL`。Windows 上用 `spawnSync` 运行 `.cmd`/`.bat` 必须设置 `shell: true`，否则现代 Node.js 直接报错，导致打包流程在第一步 `npm run build` 就中断。
+- **Windows 便携包打包损坏**：`Compress-Archive` 压缩刚拷贝的文件时，会因 Windows Defender 实时扫描占用文件而中途失败，且该错误为非终止错误，powershell 仍退出 0，导致脚本误报成功并产出残缺 / 空的 zip。改用 `tar`（bsdtar）创建 zip，共享读模式更稳，失败时也会正确返回非零退出码。
 - **粘贴 / 选择参考图失败**：补全缺失的 `/api/uploads` 路由。此前因提交遗漏，前端 POST 到不存在的接口，浏览器把非 JSON 的错误响应当 JSON 解析，报 `Unexpected token 'S', "Server act"...`。
 - **必填项为空时报错不友好**：供应商名称 / 模型显示名称 / Model ID 为空时，原先抛 Zod 默认的英文 `Too small: expected string to have >=1 characters`（且看不出是哪个字段），现改为直接提示具体哪一项未填写；多项同时缺失会一并列出。
 

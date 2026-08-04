@@ -146,10 +146,13 @@ console.log(`Creating ${path.relative(projectRoot, outputArchive)}`);
 if (process.platform === "darwin") {
   run("ditto", ["-c", "-k", "--norsrc", "--noextattr", "--keepParent", bundleDir, outputArchive]);
 } else {
-  run("powershell.exe", [
-    "-NoProfile", "-Command",
-    `Compress-Archive -Path '${bundleDir.replaceAll("'", "''")}' -DestinationPath '${outputArchive.replaceAll("'", "''")}' -Force`,
-  ]);
+  // Windows: use bsdtar (tar.exe) instead of Compress-Archive. Compress-Archive's
+  // ZipArchiveHelper opens files with restrictive sharing and aborts when a freshly
+  // copied file is briefly locked by Windows Defender; worse, it surfaces that as a
+  // non-terminating PowerShell error, so powershell.exe still exits 0 and the script
+  // falsely reports success. bsdtar reads with shared access and returns a proper
+  // non-zero exit code on real failures. -a infers zip format from the .zip suffix.
+  run("tar", ["-a", "-c", "-f", outputArchive, "-C", distDir, path.basename(bundleDir)]);
 }
 
 console.log(`Portable bundle ready: ${outputArchive}`);
