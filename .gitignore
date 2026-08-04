@@ -59,7 +59,6 @@ pnpm-debug.log*
 
 # Local uploads and generated data
 data/
-uploads/
 storage/
 
 # Editors
