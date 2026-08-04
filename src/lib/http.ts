@@ -6,7 +6,7 @@ export function ok(data: unknown, init?: ResponseInit) {
 
 export function failure(error: unknown, status = 400) {
   const message = error instanceof ZodError
-    ? error.issues[0]?.message || "数据格式不正确"
+    ? [...new Set(error.issues.map((issue) => issue.message).filter(Boolean))].join("；") || "数据格式不正确"
     : error instanceof Error ? error.message : "发生未知错误";
   return Response.json({ error: message }, { status });
 }

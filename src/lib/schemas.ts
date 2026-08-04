@@ -3,8 +3,8 @@ import { z } from "zod";
 export const modelConfigSchema = z
   .object({
     id: z.string().min(1),
-    name: z.string().min(1),
-    modelId: z.string().min(1),
+    name: z.string().min(1, "模型显示名称不能为空"),
+    modelId: z.string().min(1, "Model ID 不能为空"),
     type: z.enum(["chat", "image", "video"]),
     maxReferenceImages: z.number().int().min(0).max(8).default(2),
     maxVideoDuration: z.number().int().min(3).max(60).default(10),
@@ -18,7 +18,7 @@ export const modelConfigSchema = z
 
 export const providerConfigSchema = z.object({
   id: z.string().min(1),
-  name: z.string().min(1),
+  name: z.string().min(1, "供应商名称不能为空"),
   baseUrl: z.url(),
   apiKey: z.string().default(""),
   accessKeyId: z.string().default(""),

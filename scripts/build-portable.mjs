@@ -20,6 +20,8 @@ if (!target) {
   process.exit(1);
 }
 
+const packageJson = JSON.parse(await readFile(path.join(projectRoot, "package.json"), "utf8"));
+
 function hostTarget() {
   if (process.platform === "darwin") return `mac-${process.arch}`;
   if (process.platform === "win32" && process.arch === "x64") return "win-x64";
@@ -27,7 +29,14 @@ function hostTarget() {
 }
 
 function run(command, args, options = {}) {
-  const result = spawnSync(command, args, { cwd: projectRoot, stdio: "inherit", ...options });
+  // Windows requires shell:true to spawn .cmd/.bat files (e.g. npm.cmd). Without
+  // it, modern Node throws EINVAL when launching such scripts.
+  const result = spawnSync(command, args, {
+    cwd: projectRoot,
+    stdio: "inherit",
+    shell: process.platform === "win32",
+    ...options,
+  });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`${command} exited with code ${result.status}`);
 }
@@ -58,7 +67,7 @@ if (!(await exists(path.join(standaloneDir, "server.js")))) {
 }
 
 const distDir = path.join(projectRoot, "dist");
-const bundleDir = path.join(distDir, `Mote-${targetName}`);
+const bundleDir = path.join(distDir, `Mote-${packageJson.version}-${targetName}`);
 const appDir = path.join(bundleDir, "app");
 const runtimeDir = path.join(bundleDir, "runtime");
 await mkdir(distDir, { recursive: true });
@@ -107,7 +116,6 @@ for (const launcher of launchers) {
   if (target.nodePlatform !== "win") await chmod(destination, 0o755);
 }
 
-const packageJson = JSON.parse(await readFile(path.join(projectRoot, "package.json"), "utf8"));
 await writeFile(path.join(bundleDir, "README.txt"), [
   `Mote ${packageJson.version}`,
   "",
@@ -132,7 +140,7 @@ for (const privatePath of [
   }
 }
 
-const outputArchive = path.join(distDir, `Mote-${targetName}.zip`);
+const outputArchive = path.join(distDir, `Mote-${packageJson.version}-${targetName}.zip`);
 await rm(outputArchive, { force: true });
 console.log(`Creating ${path.relative(projectRoot, outputArchive)}`);
 if (process.platform === "darwin") {

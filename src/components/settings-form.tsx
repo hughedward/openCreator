@@ -28,6 +28,9 @@ const PROVIDER_DEFAULT_URLS: Record<ProviderConfig["apiType"], string> = {
 
 type SecretField = "apiKey" | "accessKeyId" | "secretAccessKey";
 
+// 版本号在构建时由 next.config 注入；客户端直接读取内联值。
+const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || "dev";
+
 export function SettingsForm() {
   const [config, setConfig] = useState<AppConfig>({ providers: [] });
   const [visible, setVisible] = useState<Record<string, boolean>>({});
@@ -124,7 +127,7 @@ export function SettingsForm() {
 
       <div className="settings-content">
         <div className="settings-title">
-          <span className="eyebrow">LOCAL CONFIGURATION</span>
+          <span className="eyebrow">LOCAL CONFIGURATION · v{appVersion}</span>
           <h1>模型设置</h1>
           <p>密钥只保存在这台电脑的 <code>data/config.json</code> 中，不会发送到浏览器存储。</p>
         </div>
